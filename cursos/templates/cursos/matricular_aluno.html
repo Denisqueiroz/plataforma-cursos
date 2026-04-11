@@ -1,0 +1,33 @@
+{% extends 'cursos/base.html' %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-md-7">
+      <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+          <h4 class="mb-0">Matricular Aluno em Turma</h4>
+        </div>
+        <div class="card-body">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            <div class="mb-3">
+              {{ form.user.label_tag }}
+              {{ form.user }}
+              {{ form.user.errors }}
+            </div>
+            <div class="mb-3">
+              {{ form.turma.label_tag }}
+              {{ form.turma }}
+              {{ form.turma.errors }}
+            </div>
+            <button type="submit" class="btn btn-success">Matricular</button>
+            <a class="btn btn-outline-secondary" href="{% url 'lista_cursos' %}">Cancelar</a>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

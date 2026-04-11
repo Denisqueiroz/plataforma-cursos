@@ -1,0 +1,53 @@
+{% extends 'cursos/base.html' %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h4 class="mb-0">Cadastrar novo aluno</h4>
+        </div>
+        <div class="card-body">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            <div class="mb-3">
+              {{ form.username.label_tag }}
+              {{ form.username }}
+              {{ form.username.errors }}
+            </div>
+            <div class="mb-3">
+              {{ form.first_name.label_tag }}
+              {{ form.first_name }}
+              {{ form.first_name.errors }}
+            </div>
+            <div class="mb-3">
+              {{ form.last_name.label_tag }}
+              {{ form.last_name }}
+              {{ form.last_name.errors }}
+            </div>
+            <div class="mb-3">
+              {{ form.email.label_tag }}
+              {{ form.email }}
+              {{ form.email.errors }}
+            </div>
+            <div class="mb-3">
+              {{ form.password1.label_tag }}
+              {{ form.password1 }}
+              {{ form.password1.errors }}
+            </div>
+            <div class="mb-3">
+              {{ form.password2.label_tag }}
+              {{ form.password2 }}
+              {{ form.password2.errors }}
+            </div>
+            <button type="submit" class="btn btn-success">Criar aluno</button>
+            <a class="btn btn-secondary" href="{% url 'lista_cursos' %}">Cancelar</a>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

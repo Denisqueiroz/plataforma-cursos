@@ -1,0 +1,516 @@
+{% extends 'cursos/base.html' %}
+{% load static %}
+
+{% block title %}{{ curso.title }} - Sala de Aula{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+
+<style>
+body.focus-mode #sidebar-col, 
+body.focus-mode header, 
+body.focus-mode nav, 
+body.focus-mode footer, 
+body.focus-mode #master-attachments-container {
+    display: none !important;
+}
+body.focus-mode #player-col {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 100% !important;
+}
+
+@media print {
+    body * { visibility: hidden !important; }
+    #content-anotacoes, #content-anotacoes *, #current-lesson-title {
+        visibility: visible !important;
+    }
+    #content-anotacoes {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+    }
+    .notes-wrapper, .notes-wrapper.d-none {
+        display: block !important;
+        visibility: visible !important;
+        page-break-inside: avoid;
+        margin-bottom: 30px;
+    }
+    .note-area {
+        border: none !important;
+        height: auto !important;
+        min-height: 100px;
+        box-shadow: none !important;
+        background: #fff !important;
+        resize: none !important;
+        overflow: hidden !important;
+    }
+    .btn, .btn-snap-time, #no-notes-msg { display: none !important; }
+    #sidebar-col { width: 100%; border: none; box-shadow: none; }
+    .nav-tabs { display: none !important; }
+}
+</style>
+<div class="row g-4 mt-2" id="main-layout-row">
+    <!-- MASTER PLAYER SECTION -->
+    <div class="col-lg-8" id="player-col">
+        <div class="video-container rounded-4 shadow-sm mb-3 position-relative bg-dark" style="min-height: 400px; overflow: hidden; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;">
+            <video id="master-video" class="aula-video w-100 h-100" style="display:none; position: relative; z-index: 10;" data-lesson-id="" data-bloco-id="" data-saved-time="0" controls oncontextmenu="return true;">
+                <source src="" type="video/mp4" id="master-source">
+            </video>
+            
+            <div id="video-placeholder" class="w-100 h-100 d-flex flex-column align-items-center justify-content-center text-white position-absolute top-0 start-0" style="background: #111;">
+                <i class="bi bi-play-circle text-secondary mb-3" style="font-size: 3.5rem;"></i>
+                <h5 class="fw-bold mb-1">Pronto para estudar?</h5>
+                <p class="text-muted small">Abra um módulo e selecione um bloco de vídeo na barra lateral.</p>
+            </div>
+
+
+        </div>
+
+        <div class="bg-white p-4 rounded-4 shadow-sm mb-3 border border-light">
+            <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-3 small fw-semibold">
+                <li class="breadcrumb-item"><a href="{% url 'lista_cursos' %}" class="text-decoration-none text-muted"><i class="bi bi-house-door"></i> Início</a></li>
+                <li class="breadcrumb-item text-muted">{{ curso.title }}</li>
+                <li class="breadcrumb-item text-primary" id="breadcrumb-modulo">Aguardando Seleção</li>
+              </ol>
+            </nav>
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="fw-bold mb-0 text-dark" id="current-lesson-title">{{ curso.title }}</h4>
+                    <p class="text-muted small mb-0 mt-1 fw-bold" id="current-bloco-title" style="color: #6c757d;">Escolha sua próxima aula ao lado.</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-dark rounded-pill px-3 shadow-sm" id="btn-apagar-luz"><i class="bi bi-lightbulb"></i> Apagar a Luz</button>
+                    <button class="btn btn-sm btn-dark rounded-pill px-3 shadow-sm d-none" id="master-btn-next">Próximo Bloco ⏭️</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-4 shadow-sm" id="master-attachments-container">
+            <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-paperclip me-2 text-primary"></i>Materiais de Apoio</h6>
+            <div id="attachments-list" class="row g-2">
+                <p class="text-muted small">Nenhuma aula selecionada.</p>
+            </div>
+        </div>
+        
+        <!-- HIDDEN ATTACHMENTS DATA POOL -->
+        <div id="attachments-pool" class="d-none">
+            {% for mod in modulos %}
+                {% for aula in mod.lessons.all %}
+                <div id="attachments-data-{{ aula.id }}">
+                    {% if aula.attachments.all %}
+                        {% for anexo in aula.attachments.all %}
+                        <div class="col-md-6 mb-2">
+                            <a href="{{ anexo.file.url }}" class="btn btn-light w-100 text-start border p-3 rounded-4 shadow-sm text-truncate text-dark fw-medium" target="_blank" style="transition: all 0.2s;">
+                                <i class="bi bi-file-earmark-text text-danger me-2"></i> {{ anexo.title }}
+                            </a>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted small w-100">Nenhum material anexado a esta aula.</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- SIDEBAR NAVIGATION -->
+    <div class="col-lg-4" id="sidebar-col">
+        <div class="bg-white rounded-4 shadow-sm border border-light overflow-hidden d-flex flex-column" style="height: 600px;">
+            <ul class="nav nav-tabs nav-justified nav-tabs-custom flex-shrink-0 border-bottom">
+                <li class="nav-item"><button class="nav-link active fw-bold text-dark" data-tab-target="content-aulas"><i class="bi bi-collection-play me-2"></i>Conteúdo</button></li>
+                <li class="nav-item"><button class="nav-link fw-bold text-dark" data-tab-target="content-anotacoes"><i class="bi bi-journal-text me-2"></i>Anotações</button></li>
+            </ul>
+
+            <div class="flex-grow-1 overflow-auto bg-light">
+                <!-- ABAS DE NAVEGAÇÃO -->
+                <div class="tab-custom-content p-2" id="content-aulas">
+                    <div class="accordion accordion-flush" id="accordionModulos">
+                        {% for mod in modulos %}
+                        <div class="accordion-item bg-transparent border-0 mb-2">
+                            <h2 class="accordion-header" id="heading-mod-{{ mod.id }}">
+                                <button class="accordion-button {% if not forloop.first %}collapsed{% endif %} fw-bold rounded-3 shadow-sm bg-white text-dark border border-light" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-mod-{{ mod.id }}">
+                                    <i class="bi bi-folder2-open text-primary me-2 fs-5"></i> 
+                                    <span class="text-uppercase">{{ mod.title }}</span>
+                                </button>
+                            </h2>
+                            <div id="collapse-mod-{{ mod.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#accordionModulos">
+                                <div class="accordion-body p-1 pt-2">
+                                    <div class="accordion accordion-flush" id="accordionAulas-{{ mod.id }}">
+                                        {% for aula in mod.lessons.all %}
+                                        <div class="accordion-item border-0 bg-transparent mb-2">
+                                            <h3 class="accordion-header" id="heading-aula-{{ aula.id }}">
+                                                <button class="accordion-button collapsed rounded-3 shadow-sm py-2 px-3 d-flex align-items-center ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-aula-{{ aula.id }}" style="background: #f8f9fa;">
+                                                    <span class="fw-bold small text-dark"><i class="bi {% if aula.is_completed %}bi-check-circle-fill text-success{% else %}bi-circle text-muted{% endif %} me-2"></i>Aula {{ aula.order }}: {{ aula.title }}</span>
+                                                    {% if aula.is_completed %}
+                                                    <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-2 ms-auto me-3"><i class="bi bi-patch-check-fill"></i> Aula Concluída</span>
+                                                    {% endif %}
+                                                </button>
+                                            </h3>
+                                            <div id="collapse-aula-{{ aula.id }}" class="accordion-collapse collapse" data-bs-parent="#accordionAulas-{{ mod.id }}">
+                                                <div class="accordion-body p-0 pt-1 pb-2">
+                                                    <div class="list-group list-group-flush border-start border-2 border-primary border-opacity-25 ms-4 ps-2">
+                                            {% for bloco in aula.blocos.all %}
+                                            <a href="#" class="list-group-item list-group-item-action bloco-item py-2 px-4 ps-5 border-0 d-flex align-items-center gap-2" 
+                                               style="background: #fdfdfd; font-size: 0.85rem;"
+                                               data-video-url="{% if bloco.video %}{{ bloco.video.url }}{% endif %}"
+                                               data-lesson-id="{{ aula.id }}"
+                                               data-bloco-id="{{ bloco.id }}"
+                                               data-modulo-title="Módulo {{ mod.order }} - {{ mod.title }}"
+                                               data-lesson-title="{{ aula.title }}"
+                                               data-bloco-title="{{ bloco.title }}"
+                                               data-saved-time="{{ bloco.saved_time }}">
+                                                <i class="bi {% if bloco.is_completed %}bi-check-circle-fill text-success{% else %}bi-play-circle text-primary{% endif %}"></i>
+                                                <span class="text-truncate fw-medium">{{ bloco.title }}</span>
+                                            </a>
+                                            {% endfor %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- ANOTAÇÕES -->
+                <div class="tab-custom-content d-none p-3 h-100 bg-white" id="content-anotacoes">
+                    <div class="d-flex justify-content-end mb-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill fw-bold" onclick="window.print()">
+                            <i class="bi bi-printer"></i> Exportar (PDF)
+                        </button>
+                    </div>
+                    <div id="no-notes-msg" class="text-center mt-4 text-muted small">
+                        <i class="bi bi-pencil-square" style="font-size: 2rem;"></i>
+                        <p class="mt-2">Selecione uma aula para anotar.</p>
+                    </div>
+                    {% for mod in modulos %}
+                        {% for aula in mod.lessons.all %}
+                        <div class="notes-wrapper d-none h-100 d-flex flex-column" id="notes-{{ aula.id }}">
+                            <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
+                                <h6 class="fw-bold text-dark mb-0" style="font-size: 0.9rem;">Aula: {{ aula.title }}</h6>
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-snap-time" data-lesson-id="{{ aula.id }}">
+                                    <i class="bi bi-clock"></i> Marcar Tempo
+                                </button>
+                            </div>
+                            <textarea class="form-control border bg-light note-area flex-grow-1 shadow-inner rounded-3 p-3 text-dark font-monospace" id="textarea-{{ aula.id }}" style="resize: none; font-size: 0.9rem;" data-lesson-id="{{ aula.id }}" placeholder="Suas anotações são salvas automaticamente...">{{ aula.user_notes }}</textarea>
+                            <div id="timestamps-{{ aula.id }}" class="mt-2 d-flex flex-wrap gap-1"></div>
+                            <div class="text-end mt-2"><span class="save-status small"></span></div>
+                        </div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    function formatTime(s) {
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return (m < 10 ? "0" + m : m) + ":" + (sec < 10 ? "0" + sec : sec);
+    }
+
+    // Navegação entre Abas (Aulas vs Anotações)
+    document.querySelectorAll('[data-tab-target]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('[data-tab-target]').forEach(b => b.classList.remove('active', 'text-primary'));
+            document.querySelectorAll('.tab-custom-content').forEach(c => c.classList.add('d-none'));
+            btn.classList.add('active', 'text-primary');
+            document.getElementById(btn.dataset.tabTarget).classList.remove('d-none');
+            document.getElementById(btn.dataset.tabTarget).classList.add('d-flex'); // Auxilia layout do textarea
+        });
+    });
+
+    const masterVideo = document.getElementById('master-video');
+    const masterSource = document.getElementById('master-source');
+    const videoPlaceholder = document.getElementById('video-placeholder');
+    
+    // NAVEGAÇÃO DE BLOCOS (Troca de Vídeo Master)
+    document.querySelectorAll('.bloco-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            const url = item.dataset.videoUrl;
+            if(!url) return; // Se não tem vídeo, ignora
+
+            const lessonId = item.dataset.lessonId;
+            const blocoId = item.dataset.blocoId;
+            const savedTime = parseFloat(item.dataset.savedTime) || 0;
+
+            // Remove destaque ativo de todos e adiciona no clicado
+            document.querySelectorAll('.bloco-item').forEach(el => {
+                el.style.background = '#fdfdfd';
+                el.classList.remove('fw-bold');
+            });
+            item.style.background = '#e9ecef';
+            item.classList.add('fw-bold');
+
+            // Atualiza Textos
+            document.getElementById('breadcrumb-modulo').innerText = item.dataset.moduloTitle;
+            document.getElementById('current-lesson-title').innerText = item.dataset.lessonTitle;
+            document.getElementById('current-bloco-title').innerText = "Assistindo bloco: " + item.dataset.blocoTitle;
+
+            // Configura Player
+            videoPlaceholder.classList.remove('d-flex');
+            videoPlaceholder.classList.add('d-none');
+            videoPlaceholder.style.display = 'none';
+
+            masterVideo.style.display = 'block';
+            masterSource.src = url;
+            masterVideo.dataset.lessonId = lessonId;
+            masterVideo.dataset.blocoId = blocoId;
+            masterVideo.load();
+            
+            // LÓGICA DE CONTINUAR DA ONDE PAROU (LOCALSTORAGE UNIQUE KEY)
+            let lastLocalTime = localStorage.getItem('user_{{ user.id }}_video_' + blocoId);
+            if (lastLocalTime && parseFloat(lastLocalTime) > 5) {
+                masterVideo.currentTime = parseFloat(lastLocalTime);
+                console.log('Retomando vídeo automaticamente do segundo ' + lastLocalTime);
+            } else {
+                masterVideo.currentTime = savedTime;
+            }
+
+            masterVideo.play().catch(e => console.log('Autoplay preventido pelo navegador.'));
+
+            // Troca Anexos
+            const attachmentsDiv = document.getElementById('attachments-data-' + lessonId);
+            document.getElementById('attachments-list').innerHTML = attachmentsDiv ? attachmentsDiv.innerHTML : '<p class="text-muted small">Nenhum material.</p>';
+
+            // Troca Anotações
+            document.getElementById('no-notes-msg').classList.add('d-none');
+            document.querySelectorAll('.notes-wrapper').forEach(n => {
+                n.classList.add('d-none');
+                n.classList.remove('d-flex');
+            });
+            const nw = document.getElementById('notes-' + lessonId);
+            if(nw) {
+                nw.classList.remove('d-none');
+                nw.classList.add('d-flex');
+            }
+
+            // Registra Histórico via JS enviando Lesson
+            recordHistory(lessonId);
+            updatePlayBtn();
+        });
+    });
+
+    // CONTROLES CUSTOMIZADOS MASTER
+    if(masterVideo) {
+        // Evento de Tempo Inteiro
+        masterVideo.addEventListener('timeupdate', () => {
+            // Registra tempo a cada 5s
+            if (masterVideo.currentTime > 0 && Math.floor(masterVideo.currentTime) % 5 === 0) {
+                saveBlocoProgress(masterVideo.dataset.lessonId, masterVideo.dataset.blocoId, masterVideo.currentTime, false);
+                localStorage.setItem('user_{{ user.id }}_video_' + masterVideo.dataset.blocoId, masterVideo.currentTime);
+            }
+        });
+
+        masterVideo.addEventListener('ended', () => {
+            saveBlocoProgress(masterVideo.dataset.lessonId, masterVideo.dataset.blocoId, masterVideo.currentTime, true);
+            
+            // AUTO-PLAY PRÓXIMO BLOCO
+            let activeItem = document.querySelector('.bloco-item.fw-bold');
+            if (activeItem) {
+                let allBlocos = Array.from(document.querySelectorAll('.bloco-item'));
+                let currentIdx = allBlocos.indexOf(activeItem);
+                if (currentIdx >= 0 && currentIdx < allBlocos.length - 1) {
+                    console.log("Iniciando auto-play do próximo bloco...");
+                    allBlocos[currentIdx + 1].click();
+                }
+            }
+        });
+
+        // ATALHOS DE TECLADO 
+        document.addEventListener('keydown', function(e) {
+            // Ignorar se estiver digitando notas ou senha
+            let tag = document.activeElement.tagName.toLowerCase();
+            if (tag === 'textarea' || tag === 'input') return;
+
+            if (e.code === 'Space') {
+                e.preventDefault(); // prevenir descer a tela
+                if (masterVideo.paused) masterVideo.play();
+                else masterVideo.pause();
+            }
+            if (e.code === 'ArrowRight') {
+                e.preventDefault();
+                masterVideo.currentTime = Math.min(masterVideo.currentTime + 10, masterVideo.duration || masterVideo.currentTime + 10);
+            }
+            if (e.code === 'ArrowLeft') {
+                e.preventDefault();
+                masterVideo.currentTime = Math.max(masterVideo.currentTime - 10, 0);
+            }
+            if (e.key === '1') {
+                masterVideo.playbackRate = 1.0;
+            }
+            if (e.key === '2') {
+                masterVideo.playbackRate = 2.0;
+            }
+        });
+    }
+
+    // Lógica Apagar a Luz
+    const btnApagarLuz = document.getElementById('btn-apagar-luz');
+    if(btnApagarLuz) {
+        document.body.insertAdjacentHTML('beforeend', '<div id="luz-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); z-index:9990; transition: opacity 0.3s;"></div>');
+        const overlay = document.getElementById('luz-overlay');
+        const playerContainer = document.querySelector('.video-container');
+        
+        btnApagarLuz.addEventListener('click', () => {
+            if(overlay.style.display === 'none') {
+                overlay.style.display = 'block';
+                playerContainer.style.position = 'relative';
+                playerContainer.style.zIndex = '9999';
+                btnApagarLuz.innerHTML = '<i class="bi bi-lightbulb-off"></i> Acender a Luz';
+                btnApagarLuz.style.position = 'relative';
+                btnApagarLuz.style.zIndex = '9999';
+                window.scrollTo({ top: playerContainer.offsetTop - 20, behavior: 'smooth' });
+            } else {
+                overlay.style.display = 'none';
+                playerContainer.style.zIndex = 'auto';
+                btnApagarLuz.style.zIndex = 'auto';
+                btnApagarLuz.innerHTML = '<i class="bi bi-lightbulb"></i> Apagar a Luz';
+            }
+        });
+
+        overlay.addEventListener('click', () => {
+            overlay.style.display = 'none';
+            playerContainer.style.zIndex = 'auto';
+            btnApagarLuz.style.zIndex = 'auto';
+            btnApagarLuz.innerHTML = '<i class="bi bi-lightbulb"></i> Apagar a Luz';
+        });
+    }
+
+    // SALVAMENTO DE BLOCOS API
+    function saveBlocoProgress(lessonId, blocoId, time, isEnded) {
+        if (!blocoId) return;
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const url = "{% url 'lista_cursos' %}painel/aula/" + lessonId + "/progresso/";
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ 
+                action: 'bloco_progress',
+                bloco_id: blocoId,
+                video_time: time,
+                is_completed: isEnded
+            })
+        }).catch(e => console.log('Erro sync blc', e));
+    }
+
+    function recordHistory(lessonId) {
+        if (!lessonId) return;
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        fetch("{% url 'lista_cursos' %}painel/aula/" + lessonId + "/progresso/", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ action: 'history' })
+        }).catch(err => console.log('Erro hist:', err));
+    }
+
+    // AJAX NOTES SAVE E TIMESTAMPS
+    let typingTimer;
+    
+    function parseTimestamps(textarea) {
+        const lessonId = textarea.dataset.lessonId;
+        const matches = textarea.value.match(/\[\d{2}:\d{2}(?::\d{2})?\]/g);
+        const tsDiv = document.getElementById('timestamps-' + lessonId);
+        if (!tsDiv) return;
+        
+        tsDiv.innerHTML = '';
+        if (matches) {
+            let unique = [...new Set(matches)];
+            unique.forEach(m => {
+                let btn = document.createElement('button');
+                btn.className = "badge bg-primary bg-opacity-10 text-primary border border-primary me-1 mb-1 rounded-pill";
+                btn.innerHTML = `<i class="bi bi-play-fill"></i> Ir para ${m}`;
+                btn.onclick = () => {
+                    let timeStr = m.replace(/[\[\]]/g, '');
+                    let parts = timeStr.split(':');
+                    let secs = 0;
+                    if (parts.length === 2) { secs = parseInt(parts[0])*60 + parseInt(parts[1]); }
+                    else if(parts.length === 3) { secs = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]); }
+                    if (masterVideo) {
+                        masterVideo.currentTime = secs;
+                        masterVideo.play();
+                    }
+                };
+                tsDiv.appendChild(btn);
+            });
+        }
+    }
+
+    document.querySelectorAll('.note-area').forEach(textarea => {
+        // Inicializa botões de tempo nas anotações já existentes
+        parseTimestamps(textarea);
+        
+        textarea.addEventListener('input', (e) => {
+            clearTimeout(typingTimer);
+            const lessonId = e.target.dataset.lessonId;
+            const notes = e.target.value;
+            const statusSpan = e.target.parentElement.querySelector('.save-status');
+            
+            parseTimestamps(e.target);
+            
+            statusSpan.style.display = 'inline';
+            statusSpan.innerHTML = '<i class="bi bi-arrow-repeat text-warning"></i> Salvando...';
+
+            typingTimer = setTimeout(() => {
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                const updateUrl = "{% url 'lista_cursos' %}painel/aula/" + lessonId + "/progresso/";
+                fetch(updateUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ notes: notes })
+                }).then(res => {
+                    if (res.ok) {
+                        statusSpan.innerHTML = '<i class="bi bi-check-circle-fill text-success"></i> Salvo';
+                        setTimeout(() => statusSpan.style.display = 'none', 2500);
+                    } else {
+                        statusSpan.innerHTML = '<i class="bi bi-x-circle-fill text-danger"></i> Erro';
+                    }
+                }).catch(() => {
+                    statusSpan.innerHTML = '<i class="bi bi-wifi-off text-danger"></i> Sem conexão';
+                });
+            }, 2500);
+        });
+    });
+
+    // MARCAR TEMPO ATUAL
+    document.querySelectorAll('.btn-snap-time').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const lessonId = btn.dataset.lessonId;
+            const textarea = document.getElementById('textarea-' + lessonId);
+            if (!textarea || !masterVideo || masterVideo.paused && masterVideo.currentTime === 0) return;
+            
+            const timeStr = formatTime(masterVideo.currentTime);
+            const stamp = `[${timeStr}] `;
+            
+            // Insere no cursor
+            const startPos = textarea.selectionStart;
+            const endPos = textarea.selectionEnd;
+            textarea.value = textarea.value.substring(0, startPos) + stamp + textarea.value.substring(endPos, textarea.value.length);
+            
+            textarea.focus();
+            textarea.selectionStart = startPos + stamp.length;
+            textarea.selectionEnd = startPos + stamp.length;
+            
+            // Dispara evento input para salvar
+            textarea.dispatchEvent(new Event('input'));
+        });
+    });
+});
+</script>
+{% endblock %}

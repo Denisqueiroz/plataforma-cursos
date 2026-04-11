@@ -1,0 +1,44 @@
+{% extends 'cursos/base.html' %}
+{% block title %}{% if form.instance.pk %}Editar Módulo{% else %}Novo Módulo{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4 p-md-5">
+                <h4 class="fw-bold mb-4">
+                    <i class="bi bi-folder-plus text-primary me-2"></i>
+                    {% if form.instance.pk %}Editar Módulo{% else %}Criar Novo Módulo{% endif %}
+                </h4>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        {{ form.course.label_tag }}
+                        {{ form.course }}
+                    </div>
+                    
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-9">
+                            {{ form.title.label_tag }}
+                            {{ form.title }}
+                        </div>
+                        <div class="col-md-3">
+                            {{ form.order.label_tag }}
+                            {{ form.order }}
+                        </div>
+                    </div>
+                    
+                    <div class="text-end">
+                        <a href="{% url 'lista_modulos' %}" class="btn btn-light rounded-pill px-4 fw-bold shadow-sm">Cancelar</a>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+                            <i class="bi bi-save me-1"></i> Salvar Módulo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

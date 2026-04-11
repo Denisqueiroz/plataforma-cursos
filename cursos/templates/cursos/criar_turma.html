@@ -1,0 +1,38 @@
+{% extends 'cursos/base.html' %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-secondary text-white">
+          <h4 class="mb-0">Criar Turma</h4>
+        </div>
+        <div class="card-body">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            <div class="mb-3">
+              {{ form.name.label_tag }}
+              {{ form.name }}
+              {{ form.name.errors }}
+            </div>
+            <div class="mb-3">
+              {{ form.description.label_tag }}
+              {{ form.description }}
+              {{ form.description.errors }}
+            </div>
+            <div class="mb-3">
+              {{ form.courses.label_tag }}
+              {{ form.courses }}
+              {{ form.courses.errors }}
+            </div>
+            <button type="submit" class="btn btn-primary">Criar turma</button>
+            <a class="btn btn-outline-secondary" href="{% url 'lista_cursos' %}">Cancelar</a>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

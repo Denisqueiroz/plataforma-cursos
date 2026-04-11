@@ -1,0 +1,66 @@
+{% extends 'cursos/base.html' %}
+
+{% block title %}Meu Perfil - Plataforma de Cursos{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h3 class="fw-bold mb-4 text-dark">Meu Perfil</h3>
+            
+            <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+                <div class="d-flex align-items-center mb-4">
+                    <i class="bi bi-person-circle text-warning" style="font-size: 4.5rem;"></i>
+                    <div class="ms-4">
+                        <h4 class="fw-bold mb-1">
+                            {{ user.first_name }} {{ user.last_name|default:"" }}
+                        </h4>
+                        <p class="text-muted mb-0">
+                            {% if user.is_staff %}Administrador{% else %}Aluno da Plataforma{% endif %}
+                        </p>
+                    </div>
+                </div>
+                
+                <hr class="text-muted opacity-25">
+                
+                <div class="row g-4">
+                    <div class="col-sm-6">
+                        <label class="small text-muted fw-bold text-uppercase">E-mail / Login</label>
+                        <p class="fs-5 mb-0 text-dark">{{ user.email|default:user.username }}</p>
+                    </div>
+                   <div class="row mt-4">
+                     <div class="col-md-12">
+                     <label class="form-label fw-semibold text-muted small uppercase">NOME COMPLETO</label>
+                     <div class="fw-bold text-dark fs-5">
+                         {{ user.get_full_name|default:user.username }}
+                   </div>
+                     </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="small text-muted fw-bold text-uppercase">Membro desde</label>
+                        <p class="fs-5 mb-0 text-dark">{{ user.date_joined|date:"d/m/Y" }}</p>
+                    </div>
+                </div>
+
+                <hr class="text-muted opacity-25 mt-4">
+
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    <a href="{% url 'editar_perfil' %}" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="bi bi-pencil-square me-2"></i>Editar Dados
+                    </a>
+                    <a href="{% url 'alterar_senha' %}" class="btn btn-outline-dark rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="bi bi-shield-lock me-2"></i>Alterar Senha
+                    </a>
+                </div>
+            </div>
+
+            {% if user.is_staff %}
+            <div class="alert alert-warning border-0 rounded-4 shadow-sm p-4">
+                <h6 class="fw-bold mb-2"><i class="bi bi-shield-check me-2"></i>Área do Administrador</h6>
+                <p class="small mb-0">Você possui permissões para gerenciar cursos, aulas e alunos através do menu lateral.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

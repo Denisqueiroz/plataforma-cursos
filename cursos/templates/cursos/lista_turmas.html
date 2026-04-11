@@ -1,0 +1,39 @@
+{% extends 'cursos/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Turmas</h2>
+    <a href="{% url 'criar_turma' %}" class="btn btn-primary">+ Nova Turma</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Nome da Turma</th>
+                    <th>Descrição</th>
+                    <th>Cursos Inclusos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for turma in turmas %}
+                <tr>
+                    <td><strong>{{ turma.name }}</strong></td>
+                    <td>{{ turma.description }}</td>
+                    <td>
+                        {% for curso in turma.courses.all %}
+                            <span class="badge bg-info text-dark">{{ curso.title }}</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" class="text-center">Nenhuma turma criada.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

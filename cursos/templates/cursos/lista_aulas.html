@@ -1,0 +1,126 @@
+{% extends 'cursos/base.html' %}
+
+{% block title %}Gerenciar Aulas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold text-dark mb-0">Gerenciar Aulas</h2>
+        <p class="text-muted small">Visualize e organize a estrutura dos cursos detalhadamente.</p>
+    </div>
+    <a href="{% url 'criar_aula' %}" class="btn btn-warning fw-bold rounded-pill px-4 shadow-sm"><i class="bi bi-plus-lg"></i> Nova Aula</a>
+</div>
+
+{% regroup aulas by modulo.course.title as curso_list %}
+
+{% for curso_group in curso_list %}
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+    <!-- NÍVEL 1: CURSO -->
+    <div class="card-header bg-dark text-white p-3 border-0">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-mortarboard-fill text-warning me-2"></i>{{ curso_group.grouper|default:"Aulas Sem Curso" }}</h5>
+    </div>
+    
+    <div class="card-body p-0">
+        {% regroup curso_group.list by modulo as modulo_list %}
+        
+        <div class="accordion accordion-flush" id="accordionModulos-{{ forloop.counter }}">
+            {% for mod_group in modulo_list %}
+            <div class="accordion-item border-0 border-bottom">
+                <!-- NÍVEL 2: MÓDULO -->
+                <h2 class="accordion-header" id="heading-{{ curso_group.grouper|slugify }}-{{ forloop.counter }}">
+                    <button class="accordion-button {% if not forloop.first %}collapsed{% endif %} bg-light text-dark fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ curso_group.grouper|slugify }}-{{ forloop.counter }}">
+                        {% if mod_group.grouper %}
+                            <i class="bi bi-folder-fill text-primary me-2"></i>{{ mod_group.grouper.title }} <span class="badge bg-secondary ms-2 opacity-75 fw-normal">Ordem {{ mod_group.grouper.order }}</span>
+                        {% else %}
+                            <i class="bi bi-folder-x text-danger me-2"></i>Órfãs (Sem Módulo)
+                        {% endif %}
+                    </button>
+                </h2>
+                
+                <div id="collapse-{{ curso_group.grouper|slugify }}-{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#accordionModulos-{{ forloop.parentloop.counter }}">
+                    <div class="accordion-body p-0">
+                        <table class="table table-hover align-middle mb-0">
+                            <tbody>
+                                {% for aula in mod_group.list %}
+                                <!-- NÍVEL 3: AULA -->
+                                <tr class="bg-white">
+                                    <td class="ps-4">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <span class="fw-bold text-dark"><i class="bi bi-camera-reels me-2 text-muted"></i>Aula {{ aula.order }}: {{ aula.title }}</span>
+                                                <!-- BLOCOS DA AULA -->
+                                                {% if aula.blocos.all %}
+                                                <div class="mt-2 ps-4">
+                                                    {% for bloco in aula.blocos.all %}
+                                                        <div class="small fw-medium text-secondary mb-1">
+                                                            <i class="bi bi-play-circle-fill text-primary opacity-75 me-1"></i> Bloco {{ bloco.order|add:1 }}: {{ bloco.title }}
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                                {% else %}
+                                                <div class="mt-1 ps-4 small text-danger fw-medium"><i class="bi bi-exclamation-circle me-1"></i> Nenhum bloco de vídeo nesta aula.</div>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <!-- Ações da Aula -->
+                                            <div class="d-flex gap-2">
+                                                <a href="{% url 'editar_aula' aula.id %}" class="btn btn-sm btn-outline-dark rounded-pill px-3 shadow-sm">
+                                                    <i class="bi bi-pencil me-1"></i> Editar
+                                                </a>
+                                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#deleteModal{{ aula.id }}">
+                                                    <i class="bi bi-trash me-1"></i> Excluir
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% empty %}
+<div class="text-center py-5">
+    <i class="bi bi-journal-x text-muted opacity-50 d-block mb-3" style="font-size: 4rem;"></i>
+    <p class="text-muted fs-5">Nenhuma aula cadastrada ainda no sistema.</p>
+    <a href="{% url 'criar_aula' %}" class="btn btn-warning fw-bold rounded-pill shadow mt-2">Clique aqui para criar a primeira</a>
+</div>
+{% endfor %}
+
+<!-- Modais de Deleção -->
+{% for aula in aulas %}
+<div class="modal fade" id="deleteModal{{ aula.id }}" data-bs-backdrop="static" tabindex="-1" aria-labelledby="deleteModalLabel{{ aula.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header bg-danger text-white border-0 rounded-top-4">
+                <h5 class="modal-title fw-bold" id="deleteModalLabel{{ aula.id }}"><i class="bi bi-exclamation-triangle-fill me-2"></i> Confirmar Exclusão</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'deletar_aula' aula.id %}">
+                {% csrf_token %}
+                <div class="modal-body p-4 text-center">
+                    <p class="fs-5 text-dark mb-2">Tem certeza que deseja excluir esta aula?</p>
+                    <p class="fw-bold fs-4 text-danger mb-4">{{ aula.title }}</p>
+                    <p class="text-muted small mb-3">Esta ação excluirá permanentemente todos os blocos de vídeo e materiais anexados. Para prosseguir, digite sua senha de administrador:</p>
+                    
+                    <div class="form-floating mb-3 text-start">
+                        <input type="password" class="form-control" id="password{{ aula.id }}" name="password" placeholder="********" required>
+                        <label for="password{{ aula.id }}">Sua Senha</label>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-3 bg-light rounded-bottom-4 justify-content-center">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <!-- Somente este botão fará submit! -->
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold shadow-sm"><i class="bi bi-trash me-1"></i> Confirmar Exclusão</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

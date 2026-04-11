@@ -1,0 +1,440 @@
+{% extends 'cursos/base.html' %}
+
+{% block content %}
+<style>
+/* Glassmorphism Classes */
+.glass-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+}
+.dynamic-block {
+    background: #f8f9fa;
+    border-left: 4px solid #ffc107;
+    transition: all 0.2s;
+}
+.dynamic-block:hover {
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+</style>
+
+<div class="row justify-content-center mb-5">
+    <div class="col-lg-10">
+        <div class="card glass-card rounded-4 overflow-hidden">
+            <div class="card-header bg-dark text-white p-4 border-0">
+                <h4 class="mb-0 fw-bold"><i class="bi bi-camera-reels text-warning me-2"></i>{% if form.instance.pk %}Editar Aula{% else %}Adicionar Nova Aula{% endif %}</h4>
+                <p class="text-white-50 mb-0 small mt-1">Configure as informações da aula, e adicione vídeos em blocos individuais abaixo.</p>
+            </div>
+            
+            <div class="card-body p-4 p-md-5">
+                <form id="lessonForm" method="post" enctype="multipart/form-data" action="{{ request.path }}">
+                    {% csrf_token %}
+                    
+                    <!-- DADOS PRINCIPAIS -->
+                    <h5 class="fw-bold mb-3 border-bottom pb-2">1. Estrutura da Aula</h5>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            {{ form.curso_selecionador.label_tag }}
+                            {{ form.curso_selecionador }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.modulo.label_tag }}
+                            {{ form.modulo }}
+                        </div>
+                        <div class="col-md-8">
+                            {{ form.title.label_tag }}
+                            {{ form.title }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.order.label_tag }}
+                            {{ form.order }}
+                        </div>
+                    </div>
+
+                    <div class="mb-4 form-check form-switch">
+                        {{ form.is_free }}
+                        <label class="form-check-label fw-semibold ms-2" for="{{ form.is_free.id_for_label }}">
+                            <i class="bi bi-unlock text-success me-1"></i> Aula Gratuita (Libera o acesso para visitantes sem conta)
+                        </label>
+                    </div>
+
+                    <!-- MATERIAIS DE APOIO -->
+                    <h5 class="fw-bold mb-3 border-bottom pb-2 mt-5">2. Materiais de Apoio</h5>
+                    <div class="mb-4">
+                        {{ form.arquivos_extras.label_tag }}
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-file-earmark-pdf"></i></span>
+                            {{ form.arquivos_extras }}
+                        </div>
+                        <div class="form-text">Envie PDFs, ZIPs, DOCX. (Máx 500MB no total).</div>
+                    </div>
+
+                    <!-- BLOCOS DINÂMICOS -->
+                    <h5 class="fw-bold mb-3 border-bottom pb-2 mt-5 d-flex justify-content-between align-items-center">
+                        <span>3. Blocos de Vídeo</span>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-warning text-dark fw-bold rounded-pill" id="addBlockBtn">
+                                <i class="bi bi-plus-lg"></i> Adicionar Bloco Vazio
+                            </button>
+                            <input type="file" id="bulkVideoUpload" multiple accept="video/mp4,video/x-m4v,video/*" class="d-none">
+                            <button type="button" class="btn btn-sm btn-danger text-white fw-bold shadow-sm rounded-pill ms-2" id="bulkUploadBtn">
+                                <i class="bi bi-collection-play"></i> Seleção em Lote (Smart Upload)
+                            </button>
+                        </div>
+                    </h5>
+                    
+                    <div id="dynamicBlocksContainer" class="mb-4">
+                        {% if blocos %}
+                            {% for bloco in blocos %}
+                            <div class="dynamic-block p-3 p-md-4 rounded-3 mb-3 border position-relative" id="blockRow{{ forloop.counter0 }}">
+                                <button type="button" class="btn-close position-absolute top-0 end-0 m-3 btn-remove-block" data-idx="{{ forloop.counter0 }}" aria-label="Close"></button>
+                                <div class="row align-items-center g-3">
+                                    <input type="hidden" name="bloco_id_{{ forloop.counter0 }}" id="bloco_id_{{ forloop.counter0 }}" value="{{ bloco.id }}">
+                                    <div class="col-md-5">
+                                        <label class="form-label fw-bold small text-muted">Título do Bloco</label>
+                                        <div class="input-group shadow-sm">
+                                            <span class="input-group-text bg-white"><i class="bi bi-play-circle"></i></span>
+                                            <input type="text" class="form-control" name="bloco_title_{{ forloop.counter0 }}" value="{{ bloco.title }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label class="form-label fw-bold small text-muted">Arquivo de Vídeo (MP4)</label>
+                                        <div class="input-group shadow-sm">
+                                            <input type="file" class="form-control" name="bloco_video_{{ forloop.counter0 }}" accept="video/mp4,video/x-m4v,video/*">
+                                            {% if bloco.video %}
+                                            <span class="input-group-text bg-success bg-opacity-10 text-success" title="Vídeo já enviado">
+                                                <i class="bi bi-check-circle-fill"></i> Salvo
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <!-- Block Start 0 -->
+                            <div class="dynamic-block p-3 p-md-4 rounded-3 mb-3 border position-relative" id="blockRow0">
+                                <button type="button" class="btn-close position-absolute top-0 end-0 m-3 btn-remove-block" data-idx="0" aria-label="Close" style="display:none;"></button>
+                                <div class="row align-items-center g-3">
+                                    <div class="col-md-5">
+                                        <label class="form-label fw-bold small text-muted">Título do Bloco</label>
+                                        <div class="input-group shadow-sm">
+                                            <span class="input-group-text bg-white"><i class="bi bi-play-circle"></i></span>
+                                            <input type="text" class="form-control" name="bloco_title_0" placeholder="Ex: Parte 1 - Abertura" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label class="form-label fw-bold small text-muted">Arquivo de Vídeo (MP4)</label>
+                                        <div class="input-group shadow-sm">
+                                            <input type="file" class="form-control" name="bloco_video_0" accept="video/mp4,video/x-m4v,video/*">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <input type="hidden" name="bloco_count" id="blocoCount" value="{% if blocos %}{{ blocos|length }}{% else %}1{% endif %}">
+                    <input type="hidden" name="deleted_blocos" id="deletedBlocos" value="">
+
+                    <!-- PROGRESS BAR GLOBAL REMOVIDA PARA MOSTRAR NOS BLOCOS AGORA -->
+                    <div id="progressWrapper" class="mb-4 d-none">
+                        <p class="fw-bold text-dark mb-1"><i class="bi bi-cloud-arrow-up text-primary me-2"></i> Criando Aula e preparando pacotes...</p>
+                    </div>
+
+                    <!-- SUBMIT -->
+                    <div class="text-end mt-5">
+                        <button type="submit" id="submitBtn" class="btn btn-lg btn-dark rounded-pill px-5 fw-bold shadow-sm">
+                            <i class="bi bi-save me-2"></i> Salvar Aula e Processar Vídeos
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. AJAX PARA MÓDULOS
+    const courseSelect = document.getElementById('courseSelect');
+    const moduloSelect = document.getElementById('moduloSelect');
+    
+    function loadModulos() {
+        const courseId = courseSelect.value;
+        const selectedModuloId = moduloSelect.getAttribute('data-selected') || moduloSelect.value;
+        
+        if (!courseId) {
+            moduloSelect.innerHTML = '<option value="">Selecione um curso primeiro</option>';
+            return;
+        }
+        
+        fetch(`/plataforma/api/modulos/${courseId}/`) // Update for new namespace if required, otherwise relative
+            .then(response => {
+                if(!response.ok) throw new Error('Network response was not ok');
+                return response.json();
+            })
+            .then(data => {
+                moduloSelect.innerHTML = '';
+                if(data.modulos.length === 0) {
+                    moduloSelect.innerHTML = '<option value="">Nenhum módulo encontrado neste curso</option>';
+                } else {
+                    data.modulos.forEach(mod => {
+                        const opt = document.createElement('option');
+                        opt.value = mod.id;
+                        opt.textContent = `Ordem ${mod.order} - ${mod.title}`;
+                        if(selectedModuloId && parseInt(selectedModuloId) === mod.id) {
+                            opt.selected = true;
+                        }
+                        moduloSelect.appendChild(opt);
+                    });
+                }
+            })
+            .catch(err => console.error("Erro ao puxar módulos:", err));
+    }
+
+    courseSelect.addEventListener('change', loadModulos);
+
+    // Initial load se já houver curso selecionado
+    if (courseSelect.value) {
+        if (moduloSelect.value) {
+            moduloSelect.setAttribute('data-selected', moduloSelect.value);
+        }
+        loadModulos();
+    }
+
+    // 2. FORMSET DINÂMICO DE BLOCOS
+    let blocoCount = parseInt(document.getElementById('blocoCount').value) || 0;
+    const addBlockBtn = document.getElementById('addBlockBtn');
+    const add5BlocksBtn = document.getElementById('add5BlocksBtn');
+    const blocksContainer = document.getElementById('dynamicBlocksContainer');
+    const deletedBlocosInput = document.getElementById('deletedBlocos');
+
+    function createBlock(titleStr = '', fileItem = null) {
+        const idx = blocoCount;
+        let pTitle = titleStr ? titleStr : `Ex: Novo Bloco ${idx + 1}`;
+        const html = `
+            <div class="dynamic-block p-3 p-md-4 rounded-3 mb-3 border position-relative" id="blockRow${idx}">
+                <button type="button" class="btn-close position-absolute top-0 end-0 m-3 btn-remove-block" data-idx="${idx}" aria-label="Close"></button>
+                <div class="row align-items-center g-3">
+                    <div class="col-md-5">
+                        <label class="form-label fw-bold small text-muted">Título do Bloco</label>
+                        <div class="input-group shadow-sm">
+                            <span class="input-group-text bg-white"><i class="bi bi-play-circle"></i></span>
+                            <input type="text" class="form-control" name="bloco_title_${idx}" value="${titleStr}" placeholder="${pTitle}">
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <label class="form-label fw-bold small text-muted">Arquivo de Vídeo (MP4)</label>
+                        <div class="input-group shadow-sm">
+                            <input type="file" class="form-control" name="bloco_video_${idx}" id="bloco_video_input_${idx}" accept="video/mp4,video/x-m4v,video/*">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        blocksContainer.insertAdjacentHTML('beforeend', html);
+        
+        // Atribuir o arquivo fisicamente usando DataTransfer API
+        if (fileItem) {
+            let fileInput = document.getElementById(`bloco_video_input_${idx}`);
+            let dt = new DataTransfer();
+            dt.items.add(fileItem);
+            fileInput.files = dt.files;
+        }
+
+        blocoCount++;
+        document.getElementById('blocoCount').value = blocoCount;
+    }
+
+    addBlockBtn.addEventListener('click', () => createBlock());
+    
+    // UPLOAD INTELIGENTE (PULO DO GATO)
+    const bulkVideoUpload = document.getElementById('bulkVideoUpload');
+    const bulkUploadBtn = document.getElementById('bulkUploadBtn');
+
+    if (bulkUploadBtn && bulkVideoUpload) {
+        bulkUploadBtn.addEventListener('click', () => bulkVideoUpload.click());
+        bulkVideoUpload.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if(!files || files.length === 0) return;
+            
+            // FILTRO DE LIMPEZA PRÉVIA (Remove blocos fantasmas vazios)
+            document.querySelectorAll('.dynamic-block').forEach(block => {
+                let fileInput = block.querySelector('input[type="file"]');
+                let titleInput = block.querySelector('input[type="text"]');
+                
+                // Se nenhum arquivo foi selecionado e o título ainda for genérico ou vazio, exclua visual e fisicamente
+                if (fileInput && fileInput.files.length === 0) {
+                    if (!titleInput.value || titleInput.value.trim() === '') {
+                        block.remove();  // Remove o nó para evitar validação de formulário nativa (An invalid form control is not focusable)
+                    }
+                }
+            });
+
+            for(let i=0; i < files.length; i++) {
+                let file = files[i];
+                let titleNoExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                createBlock(titleNoExt, file);
+            }
+            bulkVideoUpload.value = ''; // Reset para novos cliques
+        });
+    }
+
+    // Deleção visual
+    blocksContainer.addEventListener('click', function(e) {
+        if(e.target.classList.contains('btn-remove-block')) {
+            const idx = e.target.getAttribute('data-idx');
+            const row = document.getElementById(`blockRow${idx}`);
+            // Verificar se era um bloco salvo no banco (tem id oculto?)
+            const idInput = document.getElementById(`bloco_id_${idx}`);
+            if(idInput && idInput.value) {
+                const currentDeleted = deletedBlocosInput.value;
+                deletedBlocosInput.value = currentDeleted ? currentDeleted + ',' + idInput.value : idInput.value;
+            }
+            row.style.display = 'none';
+            // Remover 'required' para não travar o form
+            row.querySelector('input[type="text"]').removeAttribute('required');
+        }
+    });
+
+    // 3. XHR UPLOAD ASSÍNCRONO BLOCO A BLOCO (ANTI-TIMEOUT)
+    const form = document.getElementById('lessonForm');
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault(); 
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processando...';
+        
+        const pgw = document.getElementById('progressWrapper');
+        if(pgw) pgw.classList.remove('d-none');
+        
+        const formObj = new FormData(form);
+        // Exclui vídeos pesados da requisição pai! Somente para subir a Aula texto base.
+        for (let i=0; i<=blocoCount; i++) {
+            formObj.delete('bloco_video_' + i);
+        }
+        
+        try {
+            const res = await fetch(form.action, {
+                method: 'POST',
+                body: formObj,
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            });
+            
+            if(!res.ok) throw new Error('O servidor recusou a requisição inicial (Erro 400 ou 500).');
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                const lessonId = data.lesson_id;
+                await processBlocksSequentially(lessonId, data.redirect_url);
+            } else {
+                throw new Error(data.error || 'Erro JSON retornado pela View.');
+            }
+        } catch(err) {
+            console.error(err);
+            alert("Aviso do Sistema: Não foi possível salvar a aula no banco. Motivo: " + err.message);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-save me-2"></i> Tentar Novamente';
+            if(pgw) pgw.classList.add('d-none');
+        }
+    });
+
+    // Enviar Blocos Um a Um para evitar timeout de upload pesado do HD externo
+    async function processBlocksSequentially(lessonId, redirectUrl) {
+        let hasError = false;
+        const submitBtn = document.getElementById('submitBtn');
+        
+        for (let i = 0; i < blocoCount; i++) {
+            const row = document.getElementById('blockRow' + i);
+            if (!row || row.style.display === 'none') continue; // Deletado visualmente
+            
+            const titleInput = row.querySelector('input[name="bloco_title_' + i + '"]');
+            const videoInput = row.querySelector('input[name="bloco_video_' + i + '"]');
+            const idInput = row.querySelector('input[name="bloco_id_' + i + '"]');
+            
+            const titleVal = titleInput ? titleInput.value : '';
+            const videoFile = (videoInput && videoInput.files.length > 0) ? videoInput.files[0] : null;
+            const idVal = idInput ? idInput.value : '';
+            
+            // PRÉ-FILTRO ESTRITO DO UPLOAD: 
+            // Se não for edição (idVal vazio) e não tiver arquivo de vídeo na linha, pule imediatamente (não envie!).
+            if (!videoFile && !idVal) {
+                console.log("Ignorou envio vazio...");
+                continue;
+            }
+
+            const blockFormData = new FormData();
+            blockFormData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            blockFormData.append('lesson_id', lessonId);
+            blockFormData.append('title', titleVal);
+            blockFormData.append('order', i);
+            if (idVal) blockFormData.append('bloco_id', idVal);
+            if (videoFile) blockFormData.append('video', videoFile);
+            
+            // Feedback Visual de Upload
+            let statusBadge = row.querySelector('.block-upload-status');
+            if(!statusBadge) {
+                statusBadge = document.createElement('span');
+                statusBadge.className = 'block-upload-status badge bg-warning text-dark position-absolute top-0 end-0 m-3 mt-4 me-5';
+                row.appendChild(statusBadge);
+            }
+            statusBadge.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando Arquivo...';
+            
+            if(videoFile) {
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Fazendo Upload do Bloco ' + (i+1) + '...';
+            }
+            
+            try {
+                // Aqui criaremos um novo XMLHttpRequest para capturar o event progress DENTRO da Promise
+                await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', "{% url 'api_upload_bloco' %}", true);
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    
+                    if (videoFile) {
+                        xhr.upload.addEventListener('progress', function(e) {
+                            if (e.lengthComputable) {
+                                const percentComplete = Math.round((e.loaded / e.total) * 100);
+                                statusBadge.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Upando ' + percentComplete + '%';
+                            }
+                        });
+                    }
+                    
+                    xhr.onload = function() {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            try {
+                                const json = JSON.parse(xhr.responseText);
+                                if(json.status === 'success') {
+                                    statusBadge.className = 'block-upload-status badge bg-success position-absolute top-0 end-0 m-3 mt-4 me-5';
+                                    statusBadge.innerHTML = '<i class="bi bi-check"></i> Salvo';
+                                    resolve();
+                                } else {
+                                    reject('Erro json backend');
+                                }
+                            } catch(e) { reject('Erro decode JSON'); }
+                        } else {
+                            reject('Erro HTTP ' + xhr.status);
+                        }
+                    };
+                    xhr.onerror = function() { reject('Falha na rede'); };
+                    xhr.send(blockFormData);
+                });
+            } catch(e) {
+                console.error('Erro bloco ' + i, e);
+                statusBadge.className = 'block-upload-status badge bg-danger position-absolute top-0 end-0 m-3 mt-4 me-5';
+                statusBadge.innerHTML = '<i class="bi bi-x"></i> Falha no Upload';
+                hasError = true;
+            }
+        } // Fim Loop blocos
+        
+        if (hasError) {
+            alert("Aviso: Alguns blocos de vídeo deram erro ou estão excessivamente grandes e sofreram Timeout no servidor local! Verifique sua conexão e feche esta janela.");
+        }
+        window.location.href = redirectUrl;
+    }
+});
+</script>
+{% endblock %}
