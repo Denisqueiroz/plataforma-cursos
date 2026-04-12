@@ -1,5 +1,7 @@
 /* --- base.html --- */
-body { background-color: #f4f7f6; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
+body { background-color: #f4f7f6; font-family: 'Inter', sans-serif; margin: 0; padding: 0; font-size: 14.5px; line-height: 1.5; font-style: normal; color: #222; }
+html { font-size: 14.5px; }
+body, button, input, select, textarea { font-style: normal; }
 #wrapper { display: flex; width: 100%; align-items: stretch; }
 
 /* SIDEBAR - Inicia com 85px (escondida) */
@@ -31,10 +33,11 @@ body { background-color: #f4f7f6; font-family: 'Inter', sans-serif; margin: 0; p
 .nav-link-custom {
     padding: 12px 20px; margin: 4px 15px; border-radius: 10px;
     display: flex; align-items: center; color: #adb5bd; text-decoration: none; transition: 0.2s; white-space: nowrap;
+    font-style: normal; font-size: 0.95rem;
 }
 .nav-link-custom:hover { background: rgba(255,255,255,0.05); color: #fff; }
 .nav-link-custom.active { background: #ffc107; color: #1a1d21 !important; font-weight: 600; }
-.nav-link-custom i { font-size: 1.25rem; min-width: 35px; }
+.nav-link-custom i { font-size: 1.1rem; min-width: 30px; }
 
 /* Esconder textos por padrão */
 .nav-link-custom span, .section-label, .user-info { display: none; }
@@ -133,8 +136,24 @@ input:focus { border-color: #ffc107; outline: 0; box-shadow: 0 0 0 0.25rem rgba(
 .nav-tabs-custom .nav-link { border: none; color: #6c757d; font-weight: 600; padding: 12px; transition: 0.2s; }
 .nav-tabs-custom .nav-link.active { color: #212529; border-bottom: 3px solid #ffc107; background: none; }
 
-.lesson-item { border: none; padding: 15px; border-left: 4px solid transparent; transition: 0.2s; }
-.lesson-item.active-lesson { background: #f8f9fa; border-left-color: #ffc107; font-weight: bold; }
+.lesson-item { border: none; padding: 10px 12px; margin-bottom: 6px; border-left: 4px solid transparent; transition: 0.2s; font-size: 13px; line-height: 1.5; font-style: normal; }
+.lesson-item:last-child { margin-bottom: 0; }
+.lesson-item.active-lesson { background: #f8f9fa; border-left-color: #ffc107; font-weight: 600; }
+
+.card-body { padding: 0.9rem 1rem; }
+.btn { font-size: 0.9rem; font-weight: 400; border-radius: 0.55rem; padding: 0.38rem 0.9rem; }
+.btn.btn-lg, .btn-lg { font-size: 1rem; padding: 0.55rem 1rem; }
+
+.plyr, .plyr__controls { font-size: 0.95rem; }
+.plyr__controls { width: 100%; box-sizing: border-box; padding: 0.5rem 0.75rem; }
+.plyr__control, .plyr__control svg, .plyr__time { font-size: 0.85rem; }
+.plyr__controls button { min-width: 36px; min-height: 36px; padding: 0.35rem; }
+.plyr__time { opacity: 0.9; font-size: 0.82rem; }
+.plyr__progress { width: 100%; padding: 0; height: auto; }
+.plyr__progress input[type='range'] { height: 4px; margin: 0; }
+.plyr__progress__buffer, .plyr__progress__filled { height: 5px; border-radius: 4px; }
+.plyr__progress__buffer { background: rgba(255,255,255,0.15); }
+.plyr__progress__filled { background: #ffc107; }
 
 /* --- TELA DE LOGIN (GLASSMORPHISM) --- */
 .login-bg {

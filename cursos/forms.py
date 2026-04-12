@@ -65,6 +65,15 @@ class EnrollmentForm(forms.ModelForm):
 # CORREÇÃO PARA MÚLTIPLOS ARQUIVOS (AULAS)
 # ---------------------------------------------------------
 
+import os
+from django.core.exceptions import ValidationError
+
+def validar_apenas_documentos(value):
+    extensoes_proibidas = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv']
+    ext = os.path.splitext(value.name)[1].lower()
+    if ext in extensoes_proibidas:
+        raise ValidationError(f'Arquivos de vídeo ({ext}) não são permitidos como materiais de apoio.')
+
 # 1. A autorização para enviar múltiplos arquivos no HTML
 class MultipleFileInput(forms.ClearableFileInput):
     allow_multiple_selected = True
@@ -72,6 +81,10 @@ class MultipleFileInput(forms.ClearableFileInput):
 # 2. A SOLUÇÃO: Campo customizado que aceita listas sem dar erro de validação
 class MultipleFileField(forms.FileField):
     def clean(self, data, initial=None):
+        if data:
+            for f in data:
+                if not isinstance(f, str):
+                    validar_apenas_documentos(f)
         return data
 
 # 3. O formulário usando a nossa nova regra
@@ -83,7 +96,7 @@ class LessonForm(forms.ModelForm):
         widget=forms.Select(attrs={'class': 'form-select mb-3 shadow-none', 'id': 'courseSelect'}),
     )
     arquivos_extras = MultipleFileField(
-        widget=MultipleFileInput(attrs={'multiple': True, 'class': 'form-control shadow-none'}),
+        widget=MultipleFileInput(attrs={'multiple': True, 'class': 'form-control shadow-none', 'accept': '.pdf,.zip,.rar,.docx'}),
         required=False,
         label='Materiais de Apoio (Opcional, selecione PDFs/ZIPs)'
     )
