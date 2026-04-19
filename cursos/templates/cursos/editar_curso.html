@@ -1,0 +1,216 @@
+{% extends 'cursos/base.html' %}
+{% load static %}
+
+{% block title %}Editar Curso - Plataforma de Cursos{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="mb-4">
+                <div class="d-flex align-items-center mb-3">
+                    <a href="{% url 'lista_cursos_admin' %}" class="btn btn-outline-secondary btn-sm me-3">
+                        <i class="bi bi-arrow-left me-2"></i>Voltar
+                    </a>
+                    <h3 class="fw-bold text-dark m-0">
+                        <i class="bi bi-pencil-square text-primary me-2"></i>Editar Curso
+                    </h3>
+                </div>
+                <p class="text-muted">Atualize os detalhes do curso {{ curso.title }}</p>
+            </div>
+
+            <!-- Card do Formulário -->
+            <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+                <div class="card-header bg-primary text-white border-0">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle me-2"></i>Informações do Curso
+                    </h5>
+                </div>
+
+                <div class="card-body p-4">
+                    <form method="post" enctype="multipart/form-data" id="formEdicao">
+                        {% csrf_token %}
+
+                        <!-- Campo: Título -->
+                        <div class="mb-4">
+                            <label for="{{ form.title.id_for_label }}" class="form-label fw-bold">
+                                <i class="bi bi-type text-primary me-2"></i>{{ form.title.label }}
+                            </label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                                <div class="text-danger small mt-2">
+                                    {% for error in form.title.errors %}
+                                        <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted d-block mt-2">
+                                Nome ou título principal do curso
+                            </small>
+                        </div>
+
+                        <!-- Campo: Descrição -->
+                        <div class="mb-4">
+                            <label for="{{ form.description.id_for_label }}" class="form-label fw-bold">
+                                <i class="bi bi-file-text text-primary me-2"></i>{{ form.description.label }}
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="text-danger small mt-2">
+                                    {% for error in form.description.errors %}
+                                        <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted d-block mt-2">
+                                Descrição detalhada do curso (conteúdo, objetivos, etc)
+                            </small>
+                        </div>
+
+                        <!-- Campo: Imagem -->
+                        <div class="mb-4">
+                            <label for="{{ form.image.id_for_label }}" class="form-label fw-bold">
+                                <i class="bi bi-image text-primary me-2"></i>{{ form.image.label }}
+                            </label>
+
+                            {% if curso.image %}
+                                <div class="mb-3">
+                                    <div class="position-relative d-inline-block">
+                                        <img src="{{ curso.image.url }}" alt="Miniatura atual" 
+                                             class="img-thumbnail rounded-2" 
+                                             style="max-width: 300px; height: 200px; object-fit: cover;">
+                                        <small class="d-block mt-2 text-muted">Imagem atual do curso</small>
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            <div class="input-group">
+                                <input type="file" class="form-control" id="{{ form.image.id_for_label }}" 
+                                       name="image" accept="image/*">
+                                <label class="input-group-text" for="{{ form.image.id_for_label }}">
+                                    <i class="bi bi-upload me-2"></i>Escolher
+                                </label>
+                            </div>
+
+                            {% if form.image.errors %}
+                                <div class="text-danger small mt-2">
+                                    {% for error in form.image.errors %}
+                                        <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <small class="form-text text-muted d-block mt-2">
+                                Formatos aceitos: JPG, PNG, GIF (máximo 5MB)
+                            </small>
+                        </div>
+
+                        <!-- Campo: Status -->
+                        <div class="mb-4">
+                            <div class="form-check form-switch">
+                                {{ form.is_active }}
+                                <label class="form-check-label fw-bold" for="{{ form.is_active.id_for_label }}">
+                                    <i class="bi bi-toggle-on text-primary me-2"></i>{{ form.is_active.label }}
+                                </label>
+                            </div>
+                            <small class="form-text text-muted d-block mt-2">
+                                Desative o curso para ocultá-lo dos alunos, mas mantendo os dados salvos
+                            </small>
+                            {% if form.is_active.errors %}
+                                <div class="text-danger small mt-2">
+                                    {% for error in form.is_active.errors %}
+                                        <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Botões de Ação -->
+                        <div class="d-grid gap-2 mt-5">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-circle me-2"></i>Atualizar Curso
+                            </button>
+                            <a href="{% url 'lista_cursos_admin' %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="bi bi-x-circle me-2"></i>Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Seção de Informações Adicionais -->
+            <div class="card border-0 shadow-sm rounded-3 mt-4">
+                <div class="card-body p-4">
+                    <h6 class="card-title fw-bold text-dark mb-3">
+                        <i class="bi bi-info-circle text-muted me-2"></i>Informações Adicionais
+                    </h6>
+                    <ul class="list-unstyled text-muted small">
+                        <li class="mb-2">
+                            <i class="bi bi-calendar3 me-2"></i>
+                            <strong>Data de Criação:</strong> {{ curso.created_at|date:"d/m/Y H:i" }}
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-layers me-2"></i>
+                            <strong>Módulos:</strong> {{ curso.modulos.count }}
+                        </li>
+                        <li>
+                            <i class="bi bi-collection-play me-2"></i>
+                            <strong>Turmas Associadas:</strong> {{ curso.turmas.count }}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Validação de imagem antes do envio
+document.getElementById('formEdicao').addEventListener('submit', function(e) {
+    const imageInput = document.querySelector('input[name="image"]');
+    if (imageInput.files.length > 0) {
+        const file = imageInput.files[0];
+        const maxSize = 5 * 1024 * 1024; // 5MB
+
+        if (file.size > maxSize) {
+            e.preventDefault();
+            alert('Arquivo muito grande! Máximo permitido é 5MB');
+            return false;
+        }
+
+        // Validar tipo de arquivo
+        const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!validTypes.includes(file.type)) {
+            e.preventDefault();
+            alert('Tipo de arquivo não permitido! Use JPG, PNG, GIF ou WEBP');
+            return false;
+        }
+    }
+});
+
+// Preview de imagem ao selecionar
+document.querySelector('input[name="image"]').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            // Se houver imagem anterior, substitui; senão, cria novo preview
+            let preview = document.querySelector('.preview-nova-imagem');
+            if (!preview) {
+                preview = document.createElement('div');
+                preview.className = 'preview-nova-imagem mt-3';
+                e.target.parentElement.parentElement.appendChild(preview);
+            }
+            preview.innerHTML = `
+                <small class="d-block text-muted mb-2">Nova imagem:</small>
+                <img src="${event.target.result}" alt="Preview" 
+                     class="img-thumbnail rounded-2" 
+                     style="max-width: 300px; height: 200px; object-fit: cover;">
+            `;
+        };
+        reader.readAsDataURL(file);
+    }
+});
+</script>
+{% endblock %}

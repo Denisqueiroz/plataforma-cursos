@@ -1,0 +1,165 @@
+{% extends 'cursos/base.html' %}
+{% load static %}
+
+{% block title %}Confirmar Exclusão de Curso - Plataforma de Cursos{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Card de Aviso -->
+            <div class="card border-danger border-3 shadow-lg rounded-3 overflow-hidden">
+                <div class="card-header bg-danger text-white border-0 p-4">
+                    <div class="text-center">
+                        <i class="bi bi-exclamation-triangle-fill" style="font-size: 3rem;"></i>
+                        <h4 class="fw-bold mt-3 mb-0">Atenção!</h4>
+                    </div>
+                </div>
+
+                <div class="card-body p-5">
+                    <h5 class="card-title fw-bold text-dark mb-4 text-center">
+                        Deletar Curso: <span class="text-danger">{{ curso.title }}</span>
+                    </h5>
+
+                    <!-- Informações do Curso -->
+                    <div class="alert alert-light border border-secondary rounded-3 mb-4">
+                        {% if curso.image %}
+                            <div class="mb-3">
+                                <img src="{{ curso.image.url }}" alt="{{ curso.title }}" 
+                                     class="img-fluid rounded-2" style="max-height: 200px; width: 100%; object-fit: cover;">
+                            </div>
+                        {% endif %}
+                        
+                        <dl class="row text-muted small">
+                            <dt class="col-sm-5">
+                                <i class="bi bi-calendar3 me-2"></i>Data de Criação:
+                            </dt>
+                            <dd class="col-sm-7">{{ curso.created_at|date:"d/m/Y H:i" }}</dd>
+
+                            <dt class="col-sm-5">
+                                <i class="bi bi-layers me-2"></i>Módulos:
+                            </dt>
+                            <dd class="col-sm-7">{{ curso.modulos.count }}</dd>
+
+                            <dt class="col-sm-5">
+                                <i class="bi bi-collection-play me-2"></i>Turmas:
+                            </dt>
+                            <dd class="col-sm-7">{{ curso.turmas.count }}</dd>
+
+                            <dt class="col-sm-5">
+                                <i class="bi bi-toggle-on me-2"></i>Status:
+                            </dt>
+                            <dd class="col-sm-7">
+                                {% if curso.is_active %}
+                                    <span class="badge bg-success">Ativo</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inativo</span>
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+
+                    <!-- Aviso de Consequências -->
+                    <div class="alert alert-warning border-0 rounded-3 mb-4">
+                        <h6 class="alert-heading fw-bold mb-2">
+                            <i class="bi bi-info-circle me-2"></i>O que acontecerá:
+                        </h6>
+                        <ul class="mb-0 small">
+                            <li>O curso será <strong>permanentemente removido</strong> do sistema</li>
+                            <li>A imagem associada será <strong>deletada do servidor</strong></li>
+                            <li>Todos os <strong>módulos e aulas</strong> vinculados serão removidos</li>
+                            <li>As <strong>matrículas de alunos</strong> serão canceladas</li>
+                            <li>Esta ação <strong>NÃO pode ser desfeita</strong></li>
+                        </ul>
+                    </div>
+
+                    <!-- Texto de Confirmação -->
+                    <div class="mb-4 p-3 bg-light rounded-2 border border-secondary">
+                        <p class="text-muted small mb-0">
+                            <strong>Tem certeza absoluta que deseja prosseguir?</strong><br>
+                            Digite o nome do curso abaixo para confirmar a exclusão.
+                        </p>
+                    </div>
+
+                    <!-- Formulário de Confirmação -->
+                    <form method="post" action="{% url 'deletar_curso' curso.pk %}" id="formConfirmacao">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="confirmacao" class="form-label fw-bold">
+                                <i class="bi bi-keyboard me-2"></i>Digite: <span class="text-danger">{{ curso.title }}</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control form-control-lg rounded-2 border-secondary" 
+                                   id="confirmacao" 
+                                   placeholder="Digite o nome do curso para confirmar"
+                                   required>
+                            <small class="text-muted d-block mt-2">
+                                Digite exatamente como mostrado acima
+                            </small>
+                        </div>
+
+                        <!-- Botões -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg" id="btnDeletar" disabled>
+                                <i class="bi bi-trash-fill me-2"></i>SIM, DELETAR PERMANENTEMENTE
+                            </button>
+                            <a href="{% url 'lista_cursos_admin' %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="bi bi-x-circle me-2"></i>Cancelar e Voltar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Seção de Ajuda -->
+            <div class="alert alert-info border-0 rounded-3 mt-4" role="alert">
+                <h6 class="alert-heading fw-bold mb-2">
+                    <i class="bi bi-question-circle me-2"></i>Precisa de ajuda?
+                </h6>
+                <small>
+                    Se deseja apenas ocultar este curso dos alunos sem perder os dados, 
+                    <a href="{% url 'editar_curso' curso.pk %}">edite o curso e desative-o</a> em vez de deletar.
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Habilita o botão de exclusão apenas quando o texto correto é digitado
+const inputConfirmacao = document.getElementById('confirmacao');
+const btnDeletar = document.getElementById('btnDeletar');
+const textoEsperado = '{{ curso.title|escapejs }}';
+
+inputConfirmacao.addEventListener('input', function() {
+    if (this.value === textoEsperado) {
+        btnDeletar.disabled = false;
+        btnDeletar.classList.add('animate__pulse');
+    } else {
+        btnDeletar.disabled = true;
+        btnDeletar.classList.remove('animate__pulse');
+    }
+});
+
+// Previne submissão acidental
+document.getElementById('formConfirmacao').addEventListener('submit', function(e) {
+    if (inputConfirmacao.value !== textoEsperado) {
+        e.preventDefault();
+        alert('O texto inserido não corresponde ao nome do curso!');
+        return false;
+    }
+
+    // Confirmação final
+    if (!confirm('Esta é sua última chance. O curso será PERMANENTEMENTE deletado!')) {
+        e.preventDefault();
+        return false;
+    }
+});
+
+// Auto-focus no input
+document.addEventListener('DOMContentLoaded', function() {
+    inputConfirmacao.focus();
+});
+</script>
+{% endblock %}

@@ -1,39 +1,203 @@
 {% extends 'cursos/base.html' %}
+{% load static %}
+
+{% block title %}Gerenciar Turmas - Plataforma de Cursos{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>Turmas</h2>
-    <a href="{% url 'criar_turma' %}" class="btn btn-primary">+ Nova Turma</a>
-</div>
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb rounded-3 bg-light p-3 mb-0">
+            <li class="breadcrumb-item"><i class="bi bi-house-fill me-2"></i><a href="{% url 'lista_cursos' %}">Início</a></li>
+            <li class="breadcrumb-item active"><i class="bi bi-collection-play-fill me-2"></i>Gerenciar Turmas</li>
+        </ol>
+    </nav>
 
-<div class="card shadow-sm">
-    <div class="card-body">
-        <table class="table table-striped table-hover">
-            <thead>
-                <tr>
-                    <th>Nome da Turma</th>
-                    <th>Descrição</th>
-                    <th>Cursos Inclusos</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for turma in turmas %}
-                <tr>
-                    <td><strong>{{ turma.name }}</strong></td>
-                    <td>{{ turma.description }}</td>
-                    <td>
-                        {% for curso in turma.courses.all %}
-                            <span class="badge bg-info text-dark">{{ curso.title }}</span>
-                        {% endfor %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="3" class="text-center">Nenhuma turma criada.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <h3 class="fw-bold text-dark m-0">
+            <i class="bi bi-collection-play-fill text-primary me-2"></i>Gerenciar Turmas
+        </h3>
+        <a href="{% url 'criar_turma' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-2"></i>Nova Turma
+        </a>
     </div>
+
+    <!-- Cards de Resumo -->
+    <div class="row row-cols-1 row-cols-md-3 g-4 mb-5">
+        <!-- Total de Turmas -->
+        <div class="col">
+            <div class="card border-0 shadow-sm rounded-3 h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <small class="text-muted fw-bold text-uppercase">Total de Turmas</small>
+                            <h3 class="fw-bold text-primary mb-0" style="font-size: 2.5rem;">{{ total_turmas }}</h3>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="bi bi-collection-play-fill text-primary" style="font-size: 1.8rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total de Alunos Matriculados -->
+        <div class="col">
+            <div class="card border-0 shadow-sm rounded-3 h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <small class="text-muted fw-bold text-uppercase">Alunos Matriculados</small>
+                            <h3 class="fw-bold text-success mb-0" style="font-size: 2.5rem;">{{ total_alunos_matriculados }}</h3>
+                        </div>
+                        <div class="bg-success bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="bi bi-people-fill text-success" style="font-size: 1.8rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cursos Ativos -->
+        <div class="col">
+            <div class="card border-0 shadow-sm rounded-3 h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <small class="text-muted fw-bold text-uppercase">Cursos Ativos</small>
+                            <h3 class="fw-bold text-info mb-0" style="font-size: 2.5rem;">{{ total_cursos_ativos }}</h3>
+                        </div>
+                        <div class="bg-info bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="bi bi-book-fill text-info" style="font-size: 1.8rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mensagens de Feedback -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'success' %}success{% elif message.tags == 'error' %}danger{% else %}info{% endif %} alert-dismissible fade show rounded-3" role="alert">
+                <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Tabela de Turmas -->
+    {% if turmas %}
+    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light border-bottom">
+                    <tr>
+                        <th class="fw-bold text-dark ps-4">Nome</th>
+                        <th class="fw-bold text-dark text-center">Cursos</th>
+                        <th class="fw-bold text-dark text-center">Alunos</th>
+                        <th class="fw-bold text-dark">Descrição</th>
+                        <th class="fw-bold text-dark text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for turma in turmas %}
+                    <tr>
+                        <td class="fw-bold text-dark ps-4">
+                            {{ turma.name }}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark" style="font-size: 0.9rem;">
+                                <i class="bi bi-book me-1"></i>{{ turma.total_courses }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark" style="font-size: 0.9rem;">
+                                <i class="bi bi-people me-1"></i>{{ turma.total_students }}
+                            </span>
+                        </td>
+                        <td class="text-muted small">
+                            {% if turma.description %}
+                                <span title="{{ turma.description }}">{{ turma.description|truncatewords:8 }}</span>
+                            {% else %}
+                                <span class="text-muted fst-italic">Sem descrição</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm d-flex justify-content-center gap-2" role="group">
+                                <a href="{% url 'turma_alunos' turma.id %}" 
+                                   class="btn btn-outline-info btn-sm" 
+                                   title="Ver alunos">
+                                    <i class="bi bi-people-fill me-1"></i>Alunos
+                                </a>
+                                <a href="{% url 'editar_turma' turma.id %}" 
+                                   class="btn btn-outline-warning btn-sm" 
+                                   title="Editar turma">
+                                    <i class="bi bi-pencil me-1"></i>Editar
+                                </a>
+                                <a href="{% url 'deletar_turma' turma.id %}" 
+                                   class="btn btn-outline-danger btn-sm" 
+                                   title="Deletar turma">
+                                    <i class="bi bi-trash me-1"></i>Deletar
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Paginação -->
+    {% if is_paginated %}
+    <nav aria-label="Navegação" class="mt-5">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1">Primeira</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <!-- Mensagem quando não há turmas -->
+    <div class="alert alert-info text-center py-5 rounded-3" role="alert">
+        <i class="bi bi-inbox" style="font-size: 3rem; color: #0d6efd;"></i>
+        <h5 class="mt-3">Nenhuma turma encontrada</h5>
+        <p class="text-muted mb-3">Crie sua primeira turma para começar a gerenciar grupos de alunos.</p>
+        <a href="{% url 'criar_turma' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-2"></i>Criar Nova Turma
+        </a>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

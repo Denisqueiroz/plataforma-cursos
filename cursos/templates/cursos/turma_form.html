@@ -1,0 +1,174 @@
+{% extends 'cursos/base.html' %}
+{% load static %}
+
+{% block title %}{% if action == 'edit' %}Editar{% else %}Criar{% endif %} Turma - Plataforma de Cursos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb rounded-3 bg-light p-3 mb-0">
+            <li class="breadcrumb-item"><i class="bi bi-house-fill me-2"></i><a href="{% url 'lista_cursos' %}">Início</a></li>
+            <li class="breadcrumb-item"><i class="bi bi-collection-play-fill me-2"></i><a href="{% url 'lista_turmas' %}">Turmas</a></li>
+            <li class="breadcrumb-item active">{% if action == 'edit' %}Editar{% else %}Criar{% endif %} Turma</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-5">
+        <h3 class="fw-bold text-dark m-0">
+            <i class="bi bi-{% if action == 'edit' %}pencil-square{% else %}plus-circle{% endif %} text-primary me-2"></i>
+            {% if action == 'edit' %}Editar Turma{% else %}Criar Nova Turma{% endif %}
+        </h3>
+    </div>
+
+    <!-- Mensagens de Feedback -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{% if message.tags == 'success' %}success{% elif message.tags == 'error' %}danger{% else %}info{% endif %} alert-dismissible fade show rounded-3" role="alert">
+                <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Formulário -->
+    <div class="row">
+        <div class="col-lg-10 col-xl-8">
+            <form method="post" class="card border-0 shadow-sm rounded-3 p-4">
+                {% csrf_token %}
+
+                <!-- Nome da Turma -->
+                <div class="mb-4">
+                    <label for="{{ form.name.id_for_label }}" class="form-label fw-bold">
+                        <i class="bi bi-collection-play-fill text-primary me-2"></i>{{ form.name.label }}
+                        <span class="text-danger">*</span>
+                    </label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.name.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Descrição -->
+                <div class="mb-4">
+                    <label for="{{ form.description.id_for_label }}" class="form-label fw-bold">
+                        <i class="bi bi-file-text text-info me-2"></i>{{ form.description.label }}
+                    </label>
+                    {{ form.description }}
+                    {% if form.description.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.description.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Seleção de Cursos -->
+                <div class="mb-4">
+                    <label class="form-label fw-bold">
+                        <i class="bi bi-book-fill text-success me-2"></i>{{ form.courses.label }}
+                    </label>
+                    <div class="card bg-light rounded-3 p-3" style="max-height: 400px; overflow-y: auto;">
+                        <div class="row row-cols-1 row-cols-md-2">
+                            {% for choice_value, choice_label in form.courses.field.choices %}
+                            <div class="col mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input course-checkbox" 
+                                           type="checkbox" 
+                                           id="id_courses_{{ forloop.counter }}" 
+                                           name="courses" 
+                                           value="{{ choice_value }}"
+                                           {% if choice_value|stringformat:"s" in form.courses.value %}checked{% endif %}>
+                                    <label class="form-check-label" for="id_courses_{{ forloop.counter }}">
+                                        {{ choice_label }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% if form.courses.help_text %}
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-info-circle me-1"></i>{{ form.courses.help_text|safe }}
+                        </small>
+                    {% endif %}
+                    {% if form.courses.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.courses.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Resumo de Cursos Selecionados -->
+                <div class="mb-4" id="selected-courses-summary">
+                    <label class="form-label fw-bold">Cursos Selecionados</label>
+                    <div id="selected-courses-list" class="d-flex gap-2 flex-wrap">
+                        <span class="text-muted small fst-italic">Nenhum curso selecionado</span>
+                    </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="d-flex gap-2 mt-5 pt-3 border-top">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-2"></i>
+                        {% if action == 'edit' %}Atualizar Turma{% else %}Criar Turma{% endif %}
+                    </button>
+                    <a href="{% url 'lista_turmas' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle me-2"></i>Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Script para atualizar resumo de cursos selecionados -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.course-checkbox');
+    const selectedList = document.getElementById('selected-courses-list');
+
+    function updateSelectedCourses() {
+        const selected = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.nextElementSibling.textContent.trim());
+
+        if (selected.length === 0) {
+            selectedList.innerHTML = '<span class="text-muted small fst-italic">Nenhum curso selecionado</span>';
+        } else {
+            selectedList.innerHTML = selected
+                .map(course => `<span class="badge bg-primary">${course}</span>`)
+                .join('');
+        }
+    }
+
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCourses);
+    });
+
+    // Inicializar
+    updateSelectedCourses();
+});
+</script>
+
+<style>
+    .form-control:focus, 
+    .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .form-check-input:checked {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+        user-select: none;
+    }
+</style>
+{% endblock %}

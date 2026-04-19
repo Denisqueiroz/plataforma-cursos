@@ -3,9 +3,9 @@
 document.addEventListener("DOMContentLoaded", function() {
     // Inicializar Plyr para todos os vídeos
     const players = Plyr.setup('.aula-video', {
-        controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
+        controls: ['play-large', 'play', 'fast-forward', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
         settings: ['speed'],
-        speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+        speed: { selected: 1, options: [0.5, 1, 1.5, 2.0] },
         autoplay: false,
         clickToPlay: true,
         hideControls: true,

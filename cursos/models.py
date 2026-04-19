@@ -5,7 +5,30 @@ from django.utils.text import slugify
 
 # Usuário
 class User(AbstractUser):
-    pass
+    def get_meus_cursos(self):
+        """
+        Retorna todos os cursos vinculados ao usuário através das turmas
+        onde ele está matriculado. Usa prefetch_related para otimizar.
+        """
+        from django.db.models import Prefetch
+        
+        # Se for staff, retorna todos os cursos ativos
+        if self.is_staff:
+            return Course.objects.filter(is_active=True).distinct()
+        
+        # Caso contrário, retorna apenas cursos das turmas onde está matriculado
+        return Course.objects.filter(
+            turmas__students=self,
+            is_active=True
+        ).distinct().prefetch_related(
+            'modulos',
+            'turmas'
+        )
+    
+    @property
+    def meus_cursos(self):
+        """Property para fácil acesso aos cursos do usuário"""
+        return self.get_meus_cursos()
 
 # Curso
 class Course(models.Model):

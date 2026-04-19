@@ -5,7 +5,9 @@ from .views import (
     UserListView, TurmaListView, EnrollmentListView,
     CourseDetailView, LessonCreateView, LessonUpdateView, 
     UserProfileView, UserUpdateView, MyPasswordChangeView,
-    ModuloListView, ModuloCreateView, ModuloUpdateView, ModuloDeleteView
+    ModuloListView, ModuloCreateView, ModuloUpdateView, ModuloDeleteView,
+    CourseListAdminView, CourseUpdateView, confirm_delete_course,
+    EnrollUserView, remove_enrollment, TurmaUpdateView, TurmaDeleteView
 )
 from . import views
 
@@ -14,6 +16,12 @@ urlpatterns = [
     path('', CourseListView.as_view(), name='lista_cursos'),
     path('criar-curso/', CourseCreateView.as_view(), name='criar_curso'),
     path('curso/<int:pk>/', CourseDetailView.as_view(), name='detalhe_curso'),
+    
+    # --- GESTÃO DE CURSOS (ADMIN) ---
+    path('painel/cursos/', CourseListAdminView.as_view(), name='lista_cursos_admin'),
+    path('painel/curso/<int:pk>/editar/', CourseUpdateView.as_view(), name='editar_curso'),
+    path('painel/curso/<int:pk>/deletar/', confirm_delete_course, name='confirmar_deletar_curso'),
+    path('painel/curso/<int:pk>/deletar-confirm/', views.delete_course, name='deletar_curso'),
     
     # --- API ---
     path('api/modulos/<int:course_id>/', views.api_get_modulos, name='api_get_modulos'),
@@ -32,11 +40,21 @@ urlpatterns = [
     path('painel/modulo/<int:pk>/editar/', ModuloUpdateView.as_view(), name='editar_modulo'),
     path('painel/modulo/<int:pk>/deletar/', ModuloDeleteView.as_view(), name='deletar_modulo'),
 
-    # --- GESTÃO DE USUÁRIOS, TURMAS E MATRÍCULAS (ADMIN) ---
+    # --- GESTÃO DE USUÁRIOS E MATRÍCULAS (ADMIN) ---
     path('painel/usuario/criar/', UserCreateView.as_view(), name='criar_usuario'),
     path('painel/usuarios/', UserListView.as_view(), name='lista_usuarios'),
-    path('painel/turma/criar/', TurmaCreateView.as_view(), name='criar_turma'),
+    path('painel/usuario/<int:user_id>/matricular/', EnrollUserView.as_view(), name='matricular_usuario'),
+    path('painel/matricula/<int:enrollment_id>/remover/', remove_enrollment, name='remover_matricula'),
+    
+    # --- GESTÃO DE TURMAS (ADMIN) ---
     path('painel/turmas/', TurmaListView.as_view(), name='lista_turmas'),
+    path('painel/turmas/nova/', TurmaCreateView.as_view(), name='criar_turma'),
+    path('painel/turmas/<int:pk>/editar/', TurmaUpdateView.as_view(), name='editar_turma'),
+    path('painel/turmas/<int:pk>/excluir/', TurmaDeleteView.as_view(), name='deletar_turma'),
+    path('painel/turmas/<int:turma_id>/alunos/', views.turma_alunos_view, name='turma_alunos'),
+    path('painel/turmas/<int:turma_id>/exportar-emails/', views.export_turma_emails, name='export_turma_emails'),
+    
+    # --- MATRÍCULAS (ADMIN) ---
     path('painel/matricula/criar/', EnrollmentCreateView.as_view(), name='matricular_aluno'),
     path('painel/matriculas/', EnrollmentListView.as_view(), name='lista_matriculas'),
 

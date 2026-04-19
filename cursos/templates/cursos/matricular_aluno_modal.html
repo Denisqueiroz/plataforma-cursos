@@ -1,0 +1,126 @@
+{% extends 'cursos/base.html' %}
+{% load static %}
+
+{% block title %}Matricular Aluno - Plataforma de Cursos{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Header -->
+            <div class="mb-4">
+                <div class="d-flex align-items-center mb-3">
+                    <a href="{% url 'lista_usuarios' %}" class="btn btn-outline-secondary btn-sm me-3">
+                        <i class="bi bi-arrow-left me-2"></i>Voltar
+                    </a>
+                    <h3 class="fw-bold text-dark m-0">
+                        <i class="bi bi-person-plus text-success me-2"></i>Matricular Aluno
+                    </h3>
+                </div>
+            </div>
+
+            <!-- Card do Formulário -->
+            <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+                <div class="card-header bg-success text-white border-0">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle me-2"></i>Informações do Aluno
+                    </h5>
+                </div>
+
+                <div class="card-body p-4">
+                    {% if aluno %}
+                        <!-- Dados do Aluno -->
+                        <div class="alert alert-light border border-success rounded-3 mb-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="bg-success bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 50px; height: 50px;">
+                                    <i class="bi bi-person-fill text-success" style="font-size: 1.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h5 class="mb-0 fw-bold text-dark">{{ aluno.get_full_name }}</h5>
+                                    <small class="text-muted">{{ aluno.email }}</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Turmas Atuais -->
+                        <div class="mb-4">
+                            <h6 class="fw-bold text-dark mb-3">
+                                <i class="bi bi-collection-play me-2"></i>Turmas Atuais
+                            </h6>
+                            {% if aluno.turmas.all %}
+                                <div class="d-flex flex-wrap gap-2">
+                                    {% for turma in aluno.turmas.all %}
+                                        <span class="badge bg-info" style="font-size: 0.9rem; padding: 0.5rem 0.75rem;">
+                                            <i class="bi bi-check-circle me-1"></i>{{ turma.name }}
+                                        </span>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted small mb-0">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    Nenhuma turma
+                                </p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Formulário -->
+                        <form method="post" id="formMatricula">
+                            {% csrf_token %}
+
+                            <div class="mb-4">
+                                <label for="id_turma" class="form-label fw-bold">
+                                    <i class="bi bi-folder-fill text-success me-2"></i>{{ form.turma.label }}
+                                </label>
+                                {{ form.turma }}
+                                {% if form.turma.errors %}
+                                    <div class="text-danger small mt-2">
+                                        {% for error in form.turma.errors %}
+                                            <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted d-block mt-2">
+                                    {{ form.turma.help_text|safe }}
+                                </small>
+                            </div>
+
+                            <!-- Erro do Formulário Geral -->
+                            {% if form.non_field_errors %}
+                                <div class="alert alert-warning border-0 rounded-3 mb-4">
+                                    {% for error in form.non_field_errors %}
+                                        <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            <!-- Botões -->
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="bi bi-check-circle me-2"></i>Confirmar Matrícula
+                                </button>
+                                <a href="{% url 'lista_usuarios' %}" class="btn btn-outline-secondary btn-lg">
+                                    <i class="bi bi-x-circle me-2"></i>Cancelar
+                                </a>
+                            </div>
+                        </form>
+                    {% else %}
+                        <!-- Aluno não encontrado -->
+                        <div class="alert alert-danger text-center py-5" role="alert">
+                            <i class="bi bi-exclamation-triangle" style="font-size: 3rem;"></i>
+                            <h5 class="mt-3">Aluno não encontrado</h5>
+                            <p class="text-muted mb-0">O aluno selecionado não está disponível.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+#id_turma {
+    min-height: 44px;
+    font-size: 1rem;
+}
+</style>
+{% endblock %}

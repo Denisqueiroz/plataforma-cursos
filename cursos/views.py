@@ -3,7 +3,7 @@ import json
 from django.http import JsonResponse
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.shortcuts import render, redirect, get_object_or_404
-from django.views.generic import ListView, CreateView, DetailView, UpdateView, TemplateView
+from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView, TemplateView, FormView
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.contrib.auth.views import PasswordChangeView
@@ -16,7 +16,7 @@ from django.views.decorators.http import require_POST
 from django.utils.html import escape
 
 from .models import Course, Modulo, Turma, Enrollment, User, Lesson, Attachment, UserLessonProgress, BlocoVideo
-from .forms import CourseForm, StudentCreationForm, TurmaForm, EnrollmentForm, LessonForm
+from .forms import CourseForm, StudentCreationForm, TurmaForm, EnrollmentForm, LessonForm, EnrollmentAlunoForm
 
 # --- MIXIN DE SEGURANÇA ---
 class StaffRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
@@ -28,16 +28,30 @@ class CourseListView(ListView):
     model = Course
     template_name = 'cursos/lista_cursos.html'
     context_object_name = 'cursos'
+    
     def get_queryset(self):
-        qs = Course.objects.filter(is_active=True).order_by('-created_at')
+        """Retorna cursos do usuário com otimização de queries"""
+        qs = Course.objects.filter(is_active=True).prefetch_related(
+            'turmas__students',  # Prefetch turmas e seus alunos
+            'modulos'             # Prefetch módulos
+        ).order_by('-created_at')
+        
+        # Filtrar por turmas do usuário se não for staff
         if not self.request.user.is_staff:
             qs = qs.filter(turmas__students=self.request.user).distinct()
+        
         return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from .models import HistoricoVideo
-        history_records = HistoricoVideo.objects.filter(user=self.request.user).select_related('lesson', 'lesson__modulo__course').order_by('-data_visualizacao')
+        history_records = HistoricoVideo.objects.filter(
+            user=self.request.user
+        ).select_related(
+            'lesson', 
+            'lesson__modulo__course'
+        ).order_by('-data_visualizacao')
+        
         unique_lessons = []
         seen = set()
         for record in history_records:
@@ -61,10 +75,36 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'curso'
 
     def get_queryset(self):
-        qs = super().get_queryset().filter(is_active=True)
+        """Filtra cursos ativos e verifica acesso do usuário"""
+        qs = super().get_queryset().filter(is_active=True).prefetch_related(
+            'turmas__students'
+        )
+        
+        # Se não for staff, filtrar por turmas do usuário
         if not self.request.user.is_staff:
             qs = qs.filter(turmas__students=self.request.user).distinct()
+        
         return qs
+    
+    def get_object(self, queryset=None):
+        """
+        Override para adicionar verificação de acesso (PermissionDenied)
+        """
+        from django.core.exceptions import PermissionDenied
+        
+        obj = super().get_object(queryset)
+        
+        # Se não é staff, verifica se realmente tem acesso
+        if not self.request.user.is_staff:
+            # Verifica se o curso está em alguma das turmas do usuário
+            user_turmas = Turma.objects.filter(
+                students=self.request.user
+            ).values_list('id', flat=True)
+            
+            if not obj.turmas.filter(id__in=user_turmas).exists():
+                raise PermissionDenied("Você não tem acesso a este curso.")
+        
+        return obj
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -117,6 +157,65 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
 
         context['modulos'] = modulos
         return context
+
+# --- LISTAGEM E GESTÃO DE CURSOS (ADMIN) ---
+class CourseListAdminView(StaffRequiredMixin, ListView):
+    """Lista todos os cursos com opções de edição e exclusão para administradores"""
+    model = Course
+    template_name = 'cursos/lista_cursos_admin.html'
+    context_object_name = 'cursos'
+    paginate_by = 10
+
+    def get_queryset(self):
+        """Retorna todos os cursos ordenados por data de criação (decrescente)"""
+        return Course.objects.all().order_by('-created_at')
+
+class CourseUpdateView(StaffRequiredMixin, SuccessMessageMixin, UpdateView):
+    """View para editar um curso existente"""
+    model = Course
+    form_class = CourseForm
+    template_name = 'cursos/editar_curso.html'
+    success_message = "Curso atualizado com sucesso!"
+    success_url = reverse_lazy('lista_cursos_admin')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['curso'] = self.object
+        return context
+
+@require_POST
+@staff_member_required
+def delete_course(request, pk):
+    """Deleta um curso e remove sua imagem associada do sistema de arquivos"""
+    curso = get_object_or_404(Course, pk=pk)
+    
+    # Deletar imagem do disco se existir
+    if curso.image:
+        image_path = curso.image.path
+        if os.path.exists(image_path):
+            try:
+                os.remove(image_path)
+            except Exception as e:
+                print(f"Erro ao deletar imagem: {e}")
+    
+    curso.delete()
+    messages.success(request, f"Curso '{curso.title}' deletado com sucesso!")
+    return redirect('lista_cursos_admin')
+
+def confirm_delete_course(request, pk):
+    """Página de confirmação para deletar um curso"""
+    if not request.user.is_staff:
+        messages.error(request, "Acesso negado!")
+        return redirect('lista_cursos')
+    
+    curso = get_object_or_404(Course, pk=pk)
+    
+    if request.method == 'POST':
+        # Se confirmou a exclusão, chama a função delete_course
+        return delete_course(request, pk)
+    
+    context = {'curso': curso}
+    return render(request, 'cursos/confirmar_deletar_curso.html', context)
 
 @staff_member_required
 def api_get_modulos(request, course_id):
@@ -324,19 +423,221 @@ class UserListView(StaffRequiredMixin, ListView):
     model = User
     template_name = 'cursos/lista_usuarios.html'
     context_object_name = 'usuarios'
+    paginate_by = 20
+    
     def get_queryset(self):
-        return User.objects.filter(is_active=True).order_by('first_name')
+        """Retorna usuários ativos com turmas matriculadas"""
+        return User.objects.filter(
+            is_active=True
+        ).prefetch_related(
+            'turmas'  # Prefetch turmas onde o usuário está matriculado
+        ).order_by('first_name')
+    
+    def get_context_data(self, **kwargs):
+        """Adiciona turmas ao contexto para o formulário"""
+        context = super().get_context_data(**kwargs)
+        context['turmas'] = Turma.objects.all().prefetch_related('courses').order_by('name')
+        return context
 
-class TurmaCreateView(StaffRequiredMixin, CreateView):
+# --- MATRÍCULA DE ALUNOS ---
+class EnrollUserView(StaffRequiredMixin, SuccessMessageMixin, FormView):
+    """View para matricular um aluno em uma turma"""
+    form_class = EnrollmentAlunoForm
+    template_name = 'cursos/matricular_aluno_modal.html'
+    success_url = reverse_lazy('lista_usuarios')
+
+    def get_context_data(self, **kwargs):
+        """Adiciona dados do aluno ao contexto"""
+        context = super().get_context_data(**kwargs)
+        user_id = self.kwargs.get('user_id')
+        if user_id:
+            try:
+                aluno = User.objects.prefetch_related('turmas').get(id=user_id)
+                context['aluno'] = aluno
+            except User.DoesNotExist:
+                pass
+        return context
+
+    def get_form_kwargs(self):
+        """Passa o usuário para o formulário"""
+        kwargs = super().get_form_kwargs()
+        # Obtém o user_id da URL
+        user_id = self.kwargs.get('user_id')
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id, is_active=True)
+                kwargs['user'] = user
+            except User.DoesNotExist:
+                pass
+        return kwargs
+
+    def form_valid(self, form):
+        """Cria o Enrollment com o usuário e turma selecionados"""
+        user_id = self.kwargs.get('user_id')
+        try:
+            user = User.objects.get(id=user_id, is_active=True)
+            turma = form.cleaned_data.get('turma')
+            
+            if not turma:
+                messages.error(self.request, "Nenhuma turma foi selecionada.")
+                return redirect('lista_usuarios')
+            
+            # Verifica se já está matriculado
+            existing = Enrollment.objects.filter(user=user, turma=turma).first()
+            if existing:
+                messages.warning(
+                    self.request, 
+                    f"O aluno '{user.get_full_name()}' já está matriculado em '{turma.name}'."
+                )
+            else:
+                # Cria o enrollment
+                Enrollment.objects.create(user=user, turma=turma)
+                messages.success(
+                    self.request, 
+                    f"Aluno '{user.get_full_name()}' foi matriculado em '{turma.name}' com sucesso!"
+                )
+                
+        except User.DoesNotExist:
+            messages.error(self.request, "Aluno não encontrado ou inativo.")
+        except Exception as e:
+            messages.error(self.request, f"Erro ao matricular: {str(e)}")
+        
+        return redirect('lista_usuarios')
+
+@staff_member_required
+def remove_enrollment(request, enrollment_id):
+    """Remove a matrícula de um aluno"""
+    enrollment = get_object_or_404(Enrollment, id=enrollment_id)
+    user_name = enrollment.user.get_full_name()
+    turma_name = enrollment.turma.name
+    
+    enrollment.delete()
+    messages.success(
+        request, 
+        f"Matrícula de '{user_name}' em '{turma_name}' foi removida."
+    )
+    
+    return redirect('lista_usuarios')
+
+class TurmaCreateView(StaffRequiredMixin, SuccessMessageMixin, CreateView):
     model = Turma
     form_class = TurmaForm
-    template_name = 'cursos/criar_turma.html'
-    success_url = reverse_lazy('criar_turma')
+    template_name = 'cursos/turma_form.html'
+    success_url = reverse_lazy('lista_turmas')
+    success_message = "Turma criada com sucesso!"
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Criar Nova Turma'
+        context['action'] = 'create'
+        return context
 
 class TurmaListView(StaffRequiredMixin, ListView):
     model = Turma
     template_name = 'cursos/lista_turmas.html'
     context_object_name = 'turmas'
+    paginate_by = 15
+    
+    def get_queryset(self):
+        """Retorna turmas com anotações de contagem"""
+        from django.db.models import Count, Prefetch
+        
+        return Turma.objects.annotate(
+            total_courses=Count('courses', distinct=True),
+            total_students=Count('students', distinct=True)
+        ).prefetch_related(
+            'courses',
+            'students'
+        ).order_by('name')
+    
+    def get_context_data(self, **kwargs):
+        """Adiciona cards de resumo"""
+        context = super().get_context_data(**kwargs)
+        from django.db.models import Count
+        
+        # Cards de resumo
+        context['total_turmas'] = Turma.objects.count()
+        context['total_alunos_matriculados'] = Enrollment.objects.values('user').distinct().count()
+        context['total_cursos_ativos'] = Course.objects.filter(is_active=True).count()
+        
+        return context
+
+class TurmaUpdateView(StaffRequiredMixin, SuccessMessageMixin, UpdateView):
+    model = Turma
+    form_class = TurmaForm
+    template_name = 'cursos/turma_form.html'
+    success_url = reverse_lazy('lista_turmas')
+    success_message = "Turma atualizada com sucesso!"
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f'Editar Turma: {self.object.name}'
+        context['action'] = 'edit'
+        return context
+
+class TurmaDeleteView(StaffRequiredMixin, DeleteView):
+    model = Turma
+    template_name = 'cursos/turma_confirm_delete.html'
+    success_url = reverse_lazy('lista_turmas')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Verifica se há alunos matriculados
+        context['has_students'] = Enrollment.objects.filter(turma=self.object).exists()
+        context['student_count'] = Enrollment.objects.filter(turma=self.object).count()
+        return context
+    
+    def delete(self, request, *args, **kwargs):
+        """Valida antes de deletar"""
+        turma = self.get_object()
+        
+        # Verifica se há alunos
+        if Enrollment.objects.filter(turma=turma).exists():
+            messages.error(
+                request,
+                f"Não é possível deletar a turma '{turma.name}' porque há {Enrollment.objects.filter(turma=turma).count()} aluno(s) matriculado(s). Remova os alunos primeiro."
+            )
+            return redirect('lista_turmas')
+        
+        messages.success(request, f"Turma '{turma.name}' foi deletada com sucesso!")
+        return super().delete(request, *args, **kwargs)
+
+@staff_member_required
+def turma_alunos_view(request, turma_id):
+    """Lista alunos de uma turma específica"""
+    turma = get_object_or_404(Turma, id=turma_id)
+    alunos = turma.students.all().order_by('first_name')
+    
+    context = {
+        'turma': turma,
+        'alunos': alunos,
+        'total_alunos': alunos.count()
+    }
+    return render(request, 'cursos/turma_alunos.html', context)
+
+@staff_member_required
+def export_turma_emails(request, turma_id):
+    """Exporta emails dos alunos de uma turma"""
+    turma = get_object_or_404(Turma, id=turma_id)
+    alunos = turma.students.all()
+    
+    emails = [aluno.email for aluno in alunos if aluno.email]
+    
+    # Se for AJAX, retorna JSON
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'turma': turma.name,
+            'total': len(emails),
+            'emails': emails
+        })
+    
+    # Caso contrário, retorna resposta com download
+    context = {
+        'turma': turma,
+        'emails': emails,
+        'total': len(emails)
+    }
+    return render(request, 'cursos/turma_export_emails.html', context)
 
 class EnrollmentCreateView(StaffRequiredMixin, CreateView):
     model = Enrollment

@@ -1,0 +1,214 @@
+{% extends 'cursos/base.html' %}
+{% load static %}
+
+{% block title %}Gerenciar Cursos - Plataforma de Cursos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-dark m-0">
+            <i class="bi bi-book-fill text-primary me-2"></i>Gerenciar Cursos
+        </h3>
+        <a href="{% url 'criar_curso' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle me-2"></i>Novo Curso
+        </a>
+    </div>
+
+    <!-- Mensagens de Feedback -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                <i class="bi bi-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Lista de Cursos -->
+    {% if cursos %}
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            {% for curso in cursos %}
+            <div class="col">
+                <div class="card h-100 border-0 shadow-sm rounded-3 overflow-hidden transition-all" 
+                     style="transition: transform 0.2s, box-shadow 0.2s;">
+                    
+                    <!-- Miniatura da Imagem -->
+                    <div class="position-relative" style="height: 200px; overflow: hidden; background: #f0f0f0;">
+                        {% if curso.image %}
+                            <img src="{{ curso.image.url }}" alt="{{ curso.title }}" class="w-100 h-100 object-fit-cover">
+                        {% else %}
+                            <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-light">
+                                <i class="bi bi-image text-muted" style="font-size: 3rem;"></i>
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Badge de Status -->
+                        <div class="position-absolute top-0 end-0 m-2">
+                            {% if curso.is_active %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle me-1"></i>Ativo
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-x-circle me-1"></i>Inativo
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Conteúdo do Card -->
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title fw-bold text-dark mb-2" title="{{ curso.title }}">
+                            {{ curso.title|truncatewords:5 }}
+                        </h5>
+                        
+                        <p class="card-text text-muted small mb-3" style="flex-grow: 1;">
+                            {{ curso.description|truncatewords:15 }}
+                        </p>
+
+                        <!-- Meta Informações -->
+                        <div class="d-flex gap-2 mb-3 text-muted small">
+                            <span>
+                                <i class="bi bi-calendar3 me-1"></i>
+                                {{ curso.created_at|date:"d/m/Y" }}
+                            </span>
+                            <span>
+                                <i class="bi bi-layers me-1"></i>
+                                {{ curso.modulos.count }} módulos
+                            </span>
+                        </div>
+
+                        <!-- Botões de Ação -->
+                        <div class="btn-group w-100" role="group">
+                            <a href="{% url 'detalhe_curso' curso.pk %}" 
+                               class="btn btn-outline-secondary btn-sm" 
+                               title="Visualizar curso">
+                                <i class="bi bi-eye me-1"></i>Ver
+                            </a>
+                            <a href="{% url 'editar_curso' curso.pk %}" 
+                               class="btn btn-outline-primary btn-sm" 
+                               title="Editar curso">
+                                <i class="bi bi-pencil me-1"></i>Editar
+                            </a>
+                            <button type="button" 
+                                    class="btn btn-outline-danger btn-sm" 
+                                    onclick="confirmarDelecao({{ curso.pk }}, '{{ curso.title|escapejs }}', '{% url 'deletar_curso' curso.pk %}')"
+                                    title="Deletar curso">
+                                <i class="bi bi-trash me-1"></i>Deletar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Paginação -->
+        {% if is_paginated %}
+        <nav aria-label="Navegação de página" class="mt-5">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1">Primeira</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                    </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+    {% else %}
+        <!-- Mensagem quando não há cursos -->
+        <div class="alert alert-info text-center py-5" role="alert">
+            <i class="bi bi-inbox" style="font-size: 3rem; color: #0d6efd;"></i>
+            <h5 class="mt-3">Nenhum curso encontrado</h5>
+            <p class="text-muted mb-3">Crie seu primeiro curso para começar a gerenciar o conteúdo educacional.</p>
+            <a href="{% url 'criar_curso' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-2"></i>Criar Novo Curso
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Modal de Confirmação de Deletação -->
+<div class="modal fade" id="modalConfirmacao" tabindex="-1" aria-labelledby="modalConfirmacaoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title" id="modalConfirmacaoLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Exclusão
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja deletar o curso <strong id="nomeCurso"></strong>?</p>
+                <p class="text-muted mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <small>Esta ação não pode ser desfeita. A imagem associada também será removida.</small>
+                </p>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formDeletacao" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-2"></i>Deletar Curso
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmarDelecao(cursoId, cursoNome, urlDelete) {
+    // Preenche o modal com informações do curso
+    document.getElementById('nomeCurso').textContent = cursoNome;
+    
+    // Atualiza o formulário para apontar para a URL correta
+    const form = document.getElementById('formDeletacao');
+    form.action = urlDelete;
+    
+    // Mostra o modal
+    const modal = new bootstrap.Modal(document.getElementById('modalConfirmacao'));
+    modal.show();
+}
+
+// Adiciona hover effect nos cards
+document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-4px)';
+        this.style.boxShadow = '0 0.5rem 1.5rem rgba(0, 0, 0, 0.15)';
+    });
+    card.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0)';
+        this.style.boxShadow = 'var(--bs-box-shadow-sm)';
+    });
+});
+</script>
+{% endblock %}

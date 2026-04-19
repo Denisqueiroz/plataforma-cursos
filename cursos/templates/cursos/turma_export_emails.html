@@ -1,0 +1,186 @@
+{% extends 'cursos/base.html' %}
+{% load static %}
+
+{% block title %}Exportar E-mails da Turma {{ turma.name }} - Plataforma de Cursos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb rounded-3 bg-light p-3 mb-0">
+            <li class="breadcrumb-item"><i class="bi bi-house-fill me-2"></i><a href="{% url 'lista_cursos' %}">Início</a></li>
+            <li class="breadcrumb-item"><i class="bi bi-collection-play-fill me-2"></i><a href="{% url 'lista_turmas' %}">Turmas</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'turma_alunos' turma.id %}">{{ turma.name }}</a></li>
+            <li class="breadcrumb-item active"><i class="bi bi-download me-2"></i>Exportar E-mails</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="mb-5">
+        <h3 class="fw-bold text-dark m-0">
+            <i class="bi bi-download text-success me-2"></i>Exportar E-mails
+        </h3>
+        <h5 class="text-muted fw-normal mt-2">
+            Turma: {{ turma.name }}
+        </h5>
+    </div>
+
+    <!-- Card de Resumo -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-3 mb-4">
+                <div class="card-body p-4">
+                    <div class="row">
+                        <div class="col-md-6 mb-3 mb-md-0">
+                            <h6 class="text-muted fw-bold text-uppercase">Total de E-mails</h6>
+                            <h2 class="fw-bold text-success mb-0">{{ total }}</h2>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted fw-bold text-uppercase">Turma</h6>
+                            <h5 class="fw-bold mb-0">{{ turma.name }}</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Caixa de E-mails -->
+            <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+                <div class="card-header bg-light border-bottom p-3">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-envelope-fill me-2"></i>Lista de E-mails
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <textarea id="emailsTextarea" 
+                              class="form-control border-0 rounded-0" 
+                              rows="15" 
+                              readonly 
+                              style="font-family: monospace; font-size: 0.9rem;">{% for email in emails %}{{ email }}
+{% endfor %}</textarea>
+                </div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div class="d-flex gap-2 mt-4 flex-wrap">
+                <button type="button" class="btn btn-primary" id="copyBtn">
+                    <i class="bi bi-clipboard me-2"></i>Copiar E-mails
+                </button>
+                <button type="button" class="btn btn-success" id="downloadBtn">
+                    <i class="bi bi-file-earmark-text me-2"></i>Baixar (.txt)
+                </button>
+                <a href="{% url 'turma_alunos' turma.id %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-chevron-left me-2"></i>Voltar
+                </a>
+            </div>
+        </div>
+
+        <!-- Informações Laterais -->
+        <div class="col-lg-4">
+            <!-- Card de Resumo da Turma -->
+            <div class="card border-0 shadow-sm rounded-3 mb-3">
+                <div class="card-header bg-light border-bottom p-3">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="bi bi-info-circle me-2"></i>Informações da Turma
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted fw-bold">NOME</small>
+                        <p class="mb-0">{{ turma.name }}</p>
+                    </div>
+                    {% if turma.description %}
+                    <div class="mb-3">
+                        <small class="text-muted fw-bold">DESCRIÇÃO</small>
+                        <p class="mb-0 small">{{ turma.description }}</p>
+                    </div>
+                    {% endif %}
+                    <div class="mb-0">
+                        <small class="text-muted fw-bold">ALUNOS MATRICULADOS</small>
+                        <p class="mb-0">
+                            <span class="badge bg-info">
+                                <i class="bi bi-people-fill me-1"></i>{{ total }}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card de Instruções -->
+            <div class="alert alert-info rounded-3" role="alert">
+                <h6 class="alert-heading mb-2">
+                    <i class="bi bi-lightbulb me-2"></i>Como usar
+                </h6>
+                <ol class="mb-0 ps-3 small">
+                    <li><strong>Copiar:</strong> Clique no botão para copiar todos os e-mails para a área de transferência</li>
+                    <li><strong>Baixar:</strong> Clique para baixar os e-mails em um arquivo de texto</li>
+                    <li><strong>Colar:</strong> Use em ferramentas de e-mail como BCC ou CC</li>
+                </ol>
+            </div>
+
+            <!-- Card de Nota de Segurança -->
+            <div class="alert alert-warning rounded-3 small" role="alert">
+                <i class="bi bi-shield-exclamation me-2"></i>
+                <strong>Proteção de Dados:</strong> Estes dados são privados. Use-os apenas para fins de comunicação com os alunos.
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const emailsTextarea = document.getElementById('emailsTextarea');
+    const copyBtn = document.getElementById('copyBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    // Copiar para clipboard
+    copyBtn.addEventListener('click', function() {
+        emailsTextarea.select();
+        document.execCommand('copy');
+        
+        // Feedback visual
+        const originalText = copyBtn.innerHTML;
+        copyBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Copiado!';
+        copyBtn.classList.add('btn-success');
+        copyBtn.classList.remove('btn-primary');
+        
+        setTimeout(function() {
+            copyBtn.innerHTML = originalText;
+            copyBtn.classList.remove('btn-success');
+            copyBtn.classList.add('btn-primary');
+        }, 2000);
+    });
+
+    // Download como arquivo de texto
+    downloadBtn.addEventListener('click', function() {
+        const emails = emailsTextarea.value;
+        const element = document.createElement('a');
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(emails));
+        element.setAttribute('download', 'emails_{{ turma.name|slugify }}_{{ "now"|date:"Y-m-d" }}.txt');
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+    });
+
+    // Ajustar altura do textarea
+    function adjustTextareaHeight() {
+        emailsTextarea.style.height = 'auto';
+        emailsTextarea.style.height = Math.min(emailsTextarea.scrollHeight + 2, 500) + 'px';
+    }
+    adjustTextareaHeight();
+    window.addEventListener('resize', adjustTextareaHeight);
+});
+</script>
+
+<style>
+    textarea[readonly] {
+        background-color: #f8f9fa;
+        resize: vertical;
+    }
+    
+    .btn-primary:hover, .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+</style>
+{% endblock %}

@@ -36,14 +36,42 @@ class CourseForm(forms.ModelForm):
 
 
 class TurmaForm(forms.ModelForm):
+    courses = forms.ModelMultipleChoiceField(
+        queryset=Course.objects.filter(is_active=True).order_by('title'),
+        widget=forms.CheckboxSelectMultiple,
+        label='Cursos da Turma',
+        help_text='Selecione os cursos que fazem parte desta turma',
+        required=False
+    )
+    
     class Meta:
         model = Turma
         fields = ['name', 'description', 'courses']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nome da Turma'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Descrição da Turma'}),
-            'courses': forms.SelectMultiple(attrs={'class': 'form-select'}),
+            'name': forms.TextInput(attrs={
+                'class': 'form-control form-control-lg',
+                'placeholder': 'Nome da Turma',
+                'required': True
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Descrição da Turma (opcional)'
+            }),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Remove 'instance' se estiver nos kwargs (segurança)
+        if 'instance' in kwargs:
+            self.fields['courses'].initial = self.instance.courses.all()
+        
+        # Adiciona classes Bootstrap
+        self.fields['name'].widget.attrs.update({'required': True})
+        for field in self.fields:
+            if field != 'courses':
+                if 'class' not in self.fields[field].widget.attrs:
+                    self.fields[field].widget.attrs['class'] = 'form-control'
 
 
 class EnrollmentForm(forms.ModelForm):
@@ -59,6 +87,38 @@ class EnrollmentForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['user'].queryset = User.objects.filter(is_active=True)
         self.fields['turma'].queryset = Turma.objects.all()
+
+
+class EnrollmentAlunoForm(forms.Form):
+    """Formulário para matricular um aluno específico em uma turma"""
+    turma = forms.ModelChoiceField(
+        queryset=Turma.objects.all(),
+        label='Turma',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        help_text='Selecione a turma para matricular o aluno'
+    )
+
+    def __init__(self, *args, user=None, **kwargs):
+        # Remove 'instance' dos kwargs pois forms.Form não aceita
+        kwargs.pop('instance', None)
+        super().__init__(*args, **kwargs)
+        self.user = user
+        # Ordena as turmas por nome
+        self.fields['turma'].queryset = Turma.objects.all().prefetch_related('courses').order_by('name')
+
+    def clean(self):
+        """Valida se o aluno já não está matriculado"""
+        cleaned_data = super().clean()
+        turma = cleaned_data.get('turma')
+
+        if self.user and turma:
+            # Verifica se já existe enrollment
+            if Enrollment.objects.filter(user=self.user, turma=turma).exists():
+                raise forms.ValidationError(
+                    f"O aluno '{self.user.get_full_name()}' já está matriculado na turma '{turma.name}'."
+                )
+
+        return cleaned_data
 
 
 # ---------------------------------------------------------

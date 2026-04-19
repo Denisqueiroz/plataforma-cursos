@@ -1,0 +1,233 @@
+{% extends 'cursos/base.html' %}
+{% load static %}
+
+{% block title %}Alunos da Turma {{ turma.name }} - Plataforma de Cursos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb rounded-3 bg-light p-3 mb-0">
+            <li class="breadcrumb-item"><i class="bi bi-house-fill me-2"></i><a href="{% url 'lista_cursos' %}">Início</a></li>
+            <li class="breadcrumb-item"><i class="bi bi-collection-play-fill me-2"></i><a href="{% url 'lista_turmas' %}">Turmas</a></li>
+            <li class="breadcrumb-item active"><i class="bi bi-people-fill me-2"></i>Alunos da Turma</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <div>
+            <h3 class="fw-bold text-dark m-0">
+                <i class="bi bi-people-fill text-primary me-2"></i>Alunos da Turma
+            </h3>
+            <h5 class="text-muted fw-normal mt-2">
+                {{ turma.name }}
+            </h5>
+        </div>
+        <a href="{% url 'lista_turmas' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-chevron-left me-2"></i>Voltar
+        </a>
+    </div>
+
+    <!-- Card de Resumo -->
+    <div class="row row-cols-1 row-cols-md-3 g-4 mb-5">
+        <!-- Total de Alunos -->
+        <div class="col">
+            <div class="card border-0 shadow-sm rounded-3 h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <small class="text-muted fw-bold text-uppercase">Total de Alunos</small>
+                            <h3 class="fw-bold text-primary mb-0" style="font-size: 2.5rem;">{{ total_alunos }}</h3>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="bi bi-people-fill text-primary" style="font-size: 1.8rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cursos da Turma -->
+        <div class="col">
+            <div class="card border-0 shadow-sm rounded-3 h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <small class="text-muted fw-bold text-uppercase">Cursos da Turma</small>
+                            <h3 class="fw-bold text-info mb-0" style="font-size: 2.5rem;">{{ turma.courses.count }}</h3>
+                        </div>
+                        <div class="bg-info bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="bi bi-book-fill text-info" style="font-size: 1.8rem;"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Exportar Emails -->
+        <div class="col">
+            <div class="card border-0 shadow-sm rounded-3 h-100">
+                <div class="card-body p-4">
+                    <button type="button" 
+                            class="btn btn-success btn-sm w-100 mt-2"
+                            data-bs-toggle="modal"
+                            data-bs-target="#emailExportModal">
+                        <i class="bi bi-download me-2"></i>Exportar E-mails
+                    </button>
+                    <small class="text-muted d-block mt-3">
+                        Clique para copiar ou baixar
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de Alunos -->
+    {% if alunos %}
+    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light border-bottom">
+                    <tr>
+                        <th class="fw-bold text-dark ps-4">Nome</th>
+                        <th class="fw-bold text-dark">E-mail</th>
+                        <th class="fw-bold text-dark">Tipo de Usuário</th>
+                        <th class="fw-bold text-dark text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for aluno in alunos %}
+                    <tr>
+                        <td class="fw-bold text-dark ps-4">
+                            {{ aluno.get_full_name|default:aluno.username }}
+                        </td>
+                        <td class="text-muted">
+                            <i class="bi bi-envelope-fill text-secondary me-2"></i>{{ aluno.email }}
+                        </td>
+                        <td>
+                            {% if aluno.is_staff %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="bi bi-shield-check me-1"></i>Staff
+                                </span>
+                            {% else %}
+                                <span class="badge bg-info">
+                                    <i class="bi bi-person-check me-1"></i>Aluno
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex justify-content-center gap-2">
+                                <a href="{% url 'remover_matricula' aluno.enrollment_set.first.id %}" 
+                                   class="btn btn-outline-danger btn-sm"
+                                   onclick="return confirm('Deseja remover este aluno da turma?');">
+                                    <i class="bi bi-x-circle me-1"></i>Remover
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Mensagem quando não há alunos -->
+    <div class="alert alert-info text-center py-5 rounded-3" role="alert">
+        <i class="bi bi-inbox" style="font-size: 3rem; color: #0d6efd;"></i>
+        <h5 class="mt-3">Nenhum aluno matriculado</h5>
+        <p class="text-muted mb-3">Esta turma não possui alunos matriculados no momento.</p>
+        <a href="{% url 'lista_usuarios' %}" class="btn btn-primary btn-sm">
+            <i class="bi bi-person-plus me-2"></i>Matricular Alunos
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Informações sobre cursos -->
+    {% if turma.courses.all %}
+    <div class="mt-5">
+        <h5 class="fw-bold mb-3">
+            <i class="bi bi-book-fill text-info me-2"></i>Cursos desta Turma
+        </h5>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+            {% for curso in turma.courses.all %}
+            <div class="col">
+                <div class="card border-0 shadow-sm rounded-3 h-100">
+                    <div class="card-body">
+                        <h6 class="card-title fw-bold text-dark">{{ curso.title }}</h6>
+                        <p class="card-text small text-muted mb-0">
+                            {{ curso.description|truncatewords:10 }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal de Exportação de E-mails -->
+<div class="modal fade" id="emailExportModal" tabindex="-1" aria-labelledby="emailExportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-light border-bottom">
+                <h5 class="modal-title fw-bold" id="emailExportModalLabel">
+                    <i class="bi bi-download me-2"></i>Exportar E-mails dos Alunos
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div id="emailsList" class="bg-light p-3 rounded-3 mb-3" style="min-height: 200px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 0.9rem;">
+                    {% for aluno in alunos %}
+                        {{ aluno.email }}{% if not forloop.last %}<br>{% endif %}
+                    {% endfor %}
+                </div>
+                <div class="alert alert-info small mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Total de e-mails: <strong>{{ alunos|length }}</strong>
+                </div>
+            </div>
+            <div class="modal-footer border-top">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-2"></i>Fechar
+                </button>
+                <button type="button" class="btn btn-primary" id="copyEmailsBtn">
+                    <i class="bi bi-clipboard me-2"></i>Copiar E-mails
+                </button>
+                <a href="#" class="btn btn-success" id="downloadEmailsBtn">
+                    <i class="bi bi-file-earmark-text me-2"></i>Baixar (.txt)
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Copiar e-mails para clipboard
+    document.getElementById('copyEmailsBtn').addEventListener('click', function() {
+        const emailsList = document.getElementById('emailsList').innerText;
+        navigator.clipboard.writeText(emailsList).then(function() {
+            alert('E-mails copiados para a área de transferência!');
+        }, function(err) {
+            alert('Erro ao copiar e-mails');
+        });
+    });
+
+    // Download de e-mails
+    document.getElementById('downloadEmailsBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        const emailsList = document.getElementById('emailsList').innerText;
+        const element = document.createElement('a');
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(emailsList));
+        element.setAttribute('download', 'emails_turma_{{ turma.name }}.txt');
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+    });
+});
+</script>
+{% endblock %}
