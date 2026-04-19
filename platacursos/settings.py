@@ -71,7 +71,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'platacursos.wsgi.application'
-
+''''
 # 4. BANCO DE DADOS (POSTGRES NO DOCKER)
 DATABASES = {
     'default': {
@@ -81,6 +81,13 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
         'HOST': os.getenv('DB_HOST', 'postgres_db'), # Nome do serviço no docker-compose
         'PORT': os.getenv('DB_PORT', '5432'),
+    }
+}
+'''
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
