@@ -3,7 +3,8 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, re_path
+from .serve_media import ranged_serve
 
 urlpatterns = [
     path('', RedirectView.as_view(url=reverse_lazy(settings.LOGIN_URL)), name='root-redirect'),
@@ -13,4 +14,6 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$', ranged_serve, {'document_root': settings.MEDIA_ROOT}),
+    ]

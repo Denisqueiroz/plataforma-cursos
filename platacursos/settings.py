@@ -10,24 +10,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # 2. CONFIGURAÇÕES DE AMBIENTE E SEGURANÇA
 load_dotenv(BASE_DIR / '.env')
 
-# Mantenha DEBUG=False em produção e configure o SECRET_KEY no .env
-DEBUG = True
+# SEGURANÇA MÁXIMA PARA PRODUÇÃO: DEBUG obrigatoriamente False
+DEBUG = False
 
 SECRET_KEY = os.getenv('SECRET_KEY')
-if not SECRET_KEY and not DEBUG:
-    raise ImproperlyConfigured("SECRET_KEY environment variable must be set in production")
+if not SECRET_KEY:
+    raise ImproperlyConfigured("A variável SECRET_KEY precisa estar configurada no arquivo .env para produção.")
 
-ALLOWED_HOSTS = ['*']
+# Captura os domínios e o IP fixo configurados no .env
+allowed_hosts_env = os.getenv('ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = allowed_hosts_env.split(',') if allowed_hosts_env else []
 
-if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    SECURE_HSTS_SECONDS = 31536000  # 1 ano
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
+# Ativação obrigatória de segurança (HTTPS, Cookies e HSTS)
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_HSTS_SECONDS = 31536000  # 1 ano
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 
 # 3. DEFINIÇÃO DA APLICAÇÃO
 AUTH_USER_MODEL = 'cursos.User'
@@ -64,15 +66,15 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'django.template.context_processors.media', # Adicionado para facilitar acesso a mídia
+                'django.template.context_processors.media', 
             ],
         },
     },
 ]
 
 WSGI_APPLICATION = 'platacursos.wsgi.application'
-''''
-# 4. BANCO DE DADOS (POSTGRES NO DOCKER)
+
+# 4. BANCO DE DADOS (POSTGRESQL NO DOCKER)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -81,13 +83,6 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
         'HOST': os.getenv('DB_HOST', 'postgres_db'), # Nome do serviço no docker-compose
         'PORT': os.getenv('DB_PORT', '5432'),
-    }
-}
-'''
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
 
@@ -110,11 +105,11 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
-# O Django salva em /app/media, que o Docker mapeia para o seu HD de 869GB
+# O Django salva em /app/media, que o Docker mapeia para o HD
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# 8. LIMITES DE UPLOAD (5GB para vídeos pesados no seu novo disco)
+# 8. LIMITES DE UPLOAD (5GB para vídeos pesados)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880000
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880000
 

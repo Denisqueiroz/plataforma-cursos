@@ -6,331 +6,464 @@
 {% block content %}
 {% csrf_token %}
 
-<style>
-/* Estilos de Modo Foco */
-body.focus-mode #sidebar-col, 
-body.focus-mode header, 
-body.focus-mode nav, 
-body.focus-mode footer, 
-body.focus-mode #master-attachments-container {
-    display: none !important;
-}
-body.focus-mode #player-col {
-    width: 100% !important;
-    max-width: 100% !important;
-    flex: 0 0 100% !important;
-}
-
-/* Configurações de Impressão (PDF) */
-@media print {
-    body * { visibility: hidden !important; }
-    #content-anotacoes, #content-anotacoes *, #current-lesson-title {
-        visibility: visible !important;
-    }
-    #content-anotacoes {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: #fff !important;
-    }
-    .notes-wrapper, .notes-wrapper.d-none {
-        display: block !important;
-        visibility: visible !important;
-        page-break-inside: avoid;
-        margin-bottom: 30px;
-    }
-    .note-area {
-        border: none !important;
-        height: auto !important;
-        min-height: 100px;
-        box-shadow: none !important;
-        background: #fff !important;
-        resize: none !important;
-        overflow: hidden !important;
-    }
-    .btn, .btn-snap-time, #no-notes-msg, .nav-tabs, .header-anotacoes-btn { display: none !important; }
-    #sidebar-col { width: 100%; border: none; box-shadow: none; }
-}
-
-/* Melhoria visual para as abas */
-.nav-tabs-custom .nav-link.active {
-    border-bottom: 3px solid #0d6efd !important;
-    background: #fff !important;
-}
-.note-area:focus {
-    background-color: #fff !important;
-    border-color: #0d6efd !important;
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.05) !important;
-}
-</style>
+<link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+<link rel="stylesheet" href="{% static 'cursos/css/detalhe_curso.css' %}">
 
 <div class="row g-4 mt-2" id="main-layout-row">
-    <div class="col-lg-8" id="player-col">
-        <div class="video-container rounded-4 shadow-sm mb-3 position-relative bg-dark" style="min-height: 400px; overflow: hidden; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease;">
-            <video id="master-video" class="aula-video w-100 h-100" style="display:none; position: relative; z-index: 10;" data-lesson-id="" data-bloco-id="" data-saved-time="0" controls oncontextmenu="return true;">
+
+    <div class="col-lg-3" id="sidebar-ementa">
+        <div class="bg-white rounded-4 shadow-sm border border-light d-flex flex-column"
+            style="height: 600px; overflow-y: auto;">
+
+            <div class="p-3 border-bottom bg-light sticky-top d-flex justify-content-between align-items-start">
+                <div>
+                    <h6 class="fw-bold text-dark mb-1 text-uppercase">{{ curso.title }}</h6>
+                    <div class="d-flex align-items-center mt-1">
+                        <span class="text-muted" style="font-size: 0.75rem; font-weight: 600;">Progresso:</span>
+                        <span class="text-primary fw-bold ms-1" style="font-size: 0.85rem;">0%</span>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary border-0 px-2 py-1" id="btn-toggle-ementa"
+                    title="Ocultar Ementa">
+                    <i class="bi bi-layout-sidebar-inset toggle-ementa-icon" style="font-size: 1.1rem;"></i>
+                </button>
+            </div>
+
+            <div class="p-2" style="background: #fafafa;">
+                {% for mod in curso.modulos.all %}
+                <div class="mb-2 bg-white rounded-3 shadow-sm border border-light">
+
+                    <div class="p-2 d-flex justify-content-between align-items-center" style="cursor: pointer;"
+                        data-bs-toggle="collapse" data-bs-target="#mod-{{ mod.id }}">
+                        <span class="text-dark fw-bold text-uppercase"
+                            style="font-size: 0.8rem; letter-spacing: 0.5px;">{{ mod.title }}</span>
+                        <i class="bi bi-chevron-down text-primary" style="font-size: 0.8rem;"></i>
+                    </div>
+
+                    <div id="mod-{{ mod.id }}" class="collapse ps-2 pe-1">
+                        {% for aula in mod.lessons.all %}
+
+                        <div class="mb-1 mt-1 border-start border-2 border-primary ms-2 pb-1">
+                            <div class="p-1 ps-2 d-flex justify-content-between align-items-center"
+                                style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#aula-{{ aula.id }}">
+                                <span class="text-dark fw-bold" style="font-size: 0.8rem;">{{ aula.title }}</span>
+                                <i class="bi bi-chevron-bar-down text-secondary" style="font-size: 0.7rem;"></i>
+                            </div>
+
+                            <div id="aula-{{ aula.id }}" class="collapse ms-3 mt-1 mb-2">
+                                {% for bloco in aula.blocos.all %}
+
+                                <a href="#"
+                                    class="d-flex align-items-center p-1 mb-1 text-decoration-none bloco-link rounded"
+                                    style="color: #555; font-size: 13px; transition: background 0.2s;"
+                                    data-lesson-id="{{ aula.id }}"
+                                    data-video-url="{% if bloco.video %}{{ bloco.video.url }}{% endif %}"
+                                    data-modulo-title="{{ mod.title }}" data-lesson-title="{{ aula.title }}"
+                                    data-bloco-title="{{ bloco.title }}">
+
+                                    {% if bloco.is_completed %}
+                                    <i class="bi bi-check-circle-fill me-2"
+                                        style="color: #ff9900; font-size: 0.9rem;"></i>
+                                    {% else %}
+                                    <i class="bi bi-play-circle-fill me-2"
+                                        style="color: #0d6efd; font-size: 0.9rem;"></i>
+                                    {% endif %}
+                                    <span class="text-truncate">{{ bloco.title }}</span>
+                                </a>
+
+                                {% empty %}
+                                <div class="ms-4 text-muted small fst-italic py-1" style="font-size: 11px;">Nenhum bloco
+                                    cadastrado.</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="ms-3 text-muted small py-2" style="font-size: 12px;">Nenhuma aula neste módulo.
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-muted text-center p-4 small">Nenhum módulo.</div>
+                {% endfor %}
+            </div>
+
+        </div>
+    </div>
+
+    <div class="col-lg-6" id="coluna-video" style="transition: all 0.3s ease-in-out;">
+        <div class="video-container rounded-4 shadow-sm mb-3 position-relative bg-dark d-flex align-items-center justify-content-center"
+            style="aspect-ratio: 16/9; overflow: hidden;">
+            
+            <video id="master-video" class="w-100 h-100" controls oncontextmenu="return true;">
                 <source src="" type="video/mp4" id="master-source">
             </video>
-            
-            <div id="video-placeholder" class="w-100 h-100 d-flex flex-column align-items-center justify-content-center text-white position-absolute top-0 start-0" style="background: #111;">
+
+            <div id="video-placeholder"
+                class="w-100 h-100 d-flex flex-column align-items-center justify-content-center text-white position-absolute top-0 start-0"
+                style="background: #111; z-index: 5;">
                 <i class="bi bi-play-circle text-secondary mb-3" style="font-size: 3.5rem;"></i>
                 <h5 class="fw-bold mb-1">Pronto para estudar?</h5>
-                <p class="text-muted small">Abra um módulo e selecione um bloco de vídeo na barra lateral.</p>
+                <p class="text-muted small">Selecione uma aula na barra lateral.</p>
             </div>
         </div>
 
-        <div class="bg-white p-4 rounded-4 shadow-sm mb-3 border border-light">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <button
+                class="btn btn-white bg-white rounded-pill px-4 py-2 border border-primary text-primary fw-bold shadow-sm d-flex align-items-center gap-2"
+                id="btn-aula-anterior" style="transition: all 0.2s;"><i class="bi bi-arrow-left"></i> Anterior</button>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary rounded-pill px-3 shadow-sm" id="btn-toggle-ementa-nav"
+                    title="Mostrar/Ocultar Ementa"><i class="bi bi-layout-sidebar-inset toggle-ementa-icon"></i>
+                    Ementa</button>
+                <button class="btn btn-dark rounded-pill px-3 shadow-sm" id="btn-apagar-luz"><i
+                        class="bi bi-lightbulb"></i> Luz</button>
+            </div>
+
+            <button
+                class="btn btn-white bg-white rounded-pill px-4 py-2 border border-primary text-primary fw-bold shadow-sm d-flex align-items-center gap-2"
+                id="btn-prox-aula" style="transition: all 0.2s;">Próxima <i class="bi bi-arrow-right"></i></button>
+        </div>
+
+        <div class="bg-white p-4 rounded-4 shadow-sm border border-light">
             <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-3 small fw-semibold">
-                <li class="breadcrumb-item"><a href="{% url 'lista_cursos' %}" class="text-decoration-none text-muted"><i class="bi bi-house-door"></i> Início</a></li>
-                <li class="breadcrumb-item text-muted">{{ curso.title }}</li>
-                <li class="breadcrumb-item text-primary" id="breadcrumb-modulo">Aguardando Seleção</li>
-              </ol>
+                <ol class="breadcrumb mb-2 small fw-semibold">
+                    <li class="breadcrumb-item"><a href="{% url 'lista_cursos' %}"
+                            class="text-decoration-none text-muted"><i class="bi bi-house-door"></i> Início</a></li>
+                    <li class="breadcrumb-item text-muted">{{ curso.title }}</li>
+                    <li class="breadcrumb-item text-primary" id="breadcrumb-modulo">Aguardando Seleção</li>
+                </ol>
             </nav>
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h4 class="fw-bold mb-0 text-dark" id="current-lesson-title">{{ curso.title }}</h4>
-                    <p class="text-muted small mb-0 mt-1 fw-bold" id="current-bloco-title">Escolha sua próxima aula ao lado.</p>
-                </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-dark rounded-pill px-3 shadow-sm" id="btn-apagar-luz"><i class="bi bi-lightbulb"></i> Apagar a Luz</button>
-                    <button class="btn btn-sm btn-dark rounded-pill px-3 shadow-sm d-none" id="master-btn-next">Próximo Bloco ⏭️</button>
-                </div>
+            <div class="mb-3 border-bottom pb-3">
+                <h4 class="fw-bold mb-0 text-dark" id="current-lesson-title">{{ curso.title }}</h4>
+                <p class="text-muted small mb-0 mt-1 fw-bold" id="current-bloco-title">Escolha sua próxima aula ao lado.
+                </p>
             </div>
-        </div>
 
-        <div class="bg-white p-4 rounded-4 shadow-sm" id="master-attachments-container">
             <h6 class="fw-bold mb-3 text-dark"><i class="bi bi-paperclip me-2 text-primary"></i>Materiais de Apoio</h6>
             <div id="attachments-list" class="row g-2">
                 <p class="text-muted small">Nenhuma aula selecionada.</p>
             </div>
         </div>
-        
-        <div id="attachments-pool" class="d-none">
-            {% for mod in modulos %}
-                {% for aula in mod.lessons.all %}
-                <div id="attachments-data-{{ aula.id }}">
-                    {% if aula.attachments.all %}
-                        {% for anexo in aula.attachments.all %}
-                        <div class="col-md-6 mb-2">
-                            <a href="{{ anexo.file.url }}" class="btn btn-light w-100 text-start border p-3 rounded-4 shadow-sm text-truncate text-dark fw-medium" target="_blank">
-                                <i class="bi bi-file-earmark-text text-danger me-2"></i> {{ anexo.title }}
-                            </a>
-                        </div>
-                        {% endfor %}
-                    {% else %}
-                        <p class="text-muted small w-100">Nenhum material anexado.</p>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            {% endfor %}
-        </div>
     </div>
 
-    <div class="col-lg-4" id="sidebar-col">
-        <div class="bg-white rounded-4 shadow-sm border border-light overflow-hidden d-flex flex-column" style="height: 650px;">
-            <ul class="nav nav-tabs nav-justified nav-tabs-custom flex-shrink-0 border-bottom">
-                <li class="nav-item"><button class="nav-link active fw-bold text-dark" data-tab-target="content-aulas"><i class="bi bi-collection-play me-2"></i>Conteúdo</button></li>
-                <li class="nav-item"><button class="nav-link fw-bold text-dark" data-tab-target="content-anotacoes"><i class="bi bi-journal-text me-2"></i>Anotações</button></li>
-            </ul>
+    <div class="col-lg-3" id="coluna-anotacoes">
+        <div class="bg-white rounded-4 shadow-sm border border-light d-flex flex-column"
+            style="height: 100%; min-height: 400px;">
+            <div class="p-3 border-bottom bg-light">
+                <h6 class="fw-bold text-dark mb-0"><i class="bi bi-journal-text me-2 text-primary"></i>Minhas Anotações
+                </h6>
+            </div>
 
-            <div class="flex-grow-1 overflow-auto bg-light">
-                <div class="tab-custom-content p-2" id="content-aulas">
-                    <div class="accordion accordion-flush" id="accordionModulos">
-                        {% for mod in modulos %}
-                        <div class="accordion-item bg-transparent border-0 mb-2">
-                            <h2 class="accordion-header" id="heading-mod-{{ mod.id }}">
-                                <button class="accordion-button {% if not forloop.first %}collapsed{% endif %} fw-bold rounded-3 shadow-sm bg-white text-dark border border-light" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-mod-{{ mod.id }}">
-                                    <i class="bi bi-folder2-open text-primary me-2 fs-5"></i> 
-                                    <span class="text-uppercase">{{ mod.title }}</span>
-                                </button>
-                            </h2>
-                            <div id="collapse-mod-{{ mod.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" data-bs-parent="#accordionModulos">
-                                <div class="accordion-body p-1 pt-2">
-                                    <div class="accordion accordion-flush" id="accordionAulas-{{ mod.id }}">
-                                        {% for aula in mod.lessons.all %}
-                                        <div class="accordion-item border-0 bg-transparent mb-2">
-                                            <h3 class="accordion-header">
-                                                <button class="accordion-button collapsed rounded-3 shadow-sm py-2 px-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-aula-{{ aula.id }}" style="background: #f8f9fa;">
-                                                    <span class="fw-bold small text-dark"><i class="bi {% if aula.is_completed %}bi-check-circle-fill text-success{% else %}bi-circle text-muted{% endif %} me-2"></i>{{ aula.title }}</span>
-                                                </button>
-                                            </h3>
-                                            <div id="collapse-aula-{{ aula.id }}" class="accordion-collapse collapse" data-bs-parent="#accordionAulas-{{ mod.id }}">
-                                                <div class="accordion-body p-0 pt-1">
-                                                    <div class="list-group list-group-flush border-start border-2 border-primary border-opacity-25 ms-4 ps-2">
-                                                        {% for bloco in aula.blocos.all %}
-                                                        <a href="#" class="list-group-item list-group-item-action bloco-item py-2 px-3 border-0 d-flex align-items-center gap-2" 
-                                                           style="background: #fdfdfd; font-size: 0.85rem;"
-                                                           data-video-url="{% if bloco.video %}{{ bloco.video.url }}{% endif %}"
-                                                           data-lesson-id="{{ aula.id }}"
-                                                           data-bloco-id="{{ bloco.id }}"
-                                                           data-modulo-title="Módulo {{ mod.order }} - {{ mod.title }}"
-                                                           data-lesson-title="{{ aula.title }}"
-                                                           data-bloco-title="{{ bloco.title }}"
-                                                           data-saved-time="{{ bloco.saved_time }}">
-                                                            <i class="bi {% if bloco.is_completed %}bi-check-circle-fill text-success{% else %}bi-play-circle text-primary{% endif %}"></i>
-                                                            <span class="text-truncate fw-medium">{{ bloco.title }}</span>
-                                                        </a>
-                                                        {% endfor %}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
+            <div class="flex-grow-1 p-3 d-flex flex-column">
+                <textarea class="form-control notes-sidebar-textarea rounded-3 flex-grow-1 p-3"
+                    id="lesson-notes-textarea" placeholder="Nenhuma aula selecionada..." disabled
+                    style="min-height: 250px;"></textarea>
 
-                <div class="tab-custom-content d-none p-0 h-100 bg-white" id="content-anotacoes">
-                    <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
-                        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-pencil-fill me-2"></i>Minhas Notas</h6>
-                        <button type="button" class="btn btn-sm btn-outline-dark rounded-pill px-3 header-anotacoes-btn" onclick="window.print()">
-                            <i class="bi bi-printer me-1"></i> Exportar (PDF)
-                        </button>
-                    </div>
-
-                    <div class="p-3 flex-grow-1 overflow-auto">
-                        <div id="no-notes-msg" class="text-center mt-5 text-muted small">
-                            <i class="bi bi-journal-x" style="font-size: 2.5rem;"></i>
-                            <p class="mt-2">Selecione uma aula para anotar.</p>
-                        </div>
-
-                        {% for mod in modulos %}
-                            {% for aula in mod.lessons.all %}
-                            <div class="notes-wrapper d-none h-100 d-flex flex-column" id="notes-{{ aula.id }}">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary px-3 py-2 rounded-pill small fw-bold">
-                                        Aula: {{ aula.title|truncatechars:30 }}
-                                    </span>
-                                    <button type="button" class="btn btn-sm btn-primary rounded-pill btn-snap-time" data-lesson-id="{{ aula.id }}">
-                                        <i class="bi bi-clock-history me-1"></i> Marcar Tempo
-                                    </button>
-                                </div>
-                                <textarea class="form-control border-1 bg-light note-area flex-grow-1 rounded-4 p-3 text-dark" 
-                                          id="textarea-{{ aula.id }}" 
-                                          style="resize: none; font-size: 0.95rem; min-height: 350px;" 
-                                          data-lesson-id="{{ aula.id }}" 
-                                          placeholder="Suas anotações são salvas automaticamente.">{{ aula.user_notes }}</textarea>
-                                
-                                <div id="timestamps-{{ aula.id }}" class="mt-3 d-flex flex-wrap gap-1"></div>
-                                <div class="text-end mt-2"><span class="save-status small fw-bold"></span></div>
-                            </div>
-                            {% endfor %}
-                        {% endfor %}
-                    </div>
+                <div class="mt-3 d-flex flex-column align-items-center">
+                    <button class="btn btn-primary rounded-pill w-100 fw-bold shadow-sm py-2" id="btn-save-notes"
+                        disabled>Salvar Anotação</button>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<div id="attachments-pool" class="d-none">
+    {% for mod in curso.modulos.all %}
+    {% for aula in mod.lessons.all %}
+    <div id="attachments-data-{{ aula.id }}">
+        <div class="raw-notes d-none">{{ aula.user_notes|default_if_none:""|escape }}</div>
+        {% if aula.attachments.all %}
+        {% for anexo in aula.attachments.all %}
+        <div class="col-md-6 mb-2">
+            <a href="{{ anexo.file.url }}"
+                class="btn btn-light w-100 text-start border p-3 rounded-4 shadow-sm text-truncate text-dark fw-medium"
+                target="_blank">
+                <i class="bi bi-file-earmark-text text-danger me-2"></i> {{ anexo.title }}
+            </a>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p class="text-muted small w-100">Nenhum material anexado.</p>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% endfor %}
+</div>
+
+<script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    function formatTime(s) {
-        const m = Math.floor(s / 60);
-        const sec = Math.floor(s % 60);
-        return (m < 10 ? "0" + m : m) + ":" + (sec < 10 ? "0" + sec : sec);
+document.addEventListener("DOMContentLoaded", function () {
+    function showToast(msg, bg = "#0d6efd") {
+        if (typeof Toastify !== 'undefined') {
+            Toastify({
+                text: msg, duration: 3000, close: true, gravity: "bottom", position: "right",
+                style: { background: bg, borderRadius: "8px", fontFamily: "'Inter', sans-serif" }
+            }).showToast();
+        } else {
+            console.log("TOAST:", msg);
+        }
     }
 
-    // Navegação entre Abas
-    document.querySelectorAll('[data-tab-target]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('[data-tab-target]').forEach(b => b.classList.remove('active', 'text-primary'));
-            document.querySelectorAll('.tab-custom-content').forEach(c => c.classList.add('d-none'));
-            btn.classList.add('active', 'text-primary');
-            const target = document.getElementById(btn.dataset.tabTarget);
-            target.classList.remove('d-none');
-            target.classList.add('d-flex', 'flex-column');
-        });
-    });
-
     const masterVideo = document.getElementById('master-video');
-    const masterSource = document.getElementById('master-source');
     const videoPlaceholder = document.getElementById('video-placeholder');
-    
-    // Troca de Vídeo
-    document.querySelectorAll('.bloco-item').forEach(item => {
+    let player = null;
+
+    try {
+        if (masterVideo) {
+            player = new Plyr(masterVideo, {
+                controls: ['play-large', 'rewind', 'play', 'fast-forward', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
+                settings: ['captions', 'quality', 'speed'],
+                speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+                seekTime: 10,
+            });
+        }
+    } catch (err) {
+        console.error("Plyr error:", err);
+    }
+
+    // Toggle Ementa
+    const btnToggleEmenta = document.getElementById('btn-toggle-ementa');
+    const btnToggleEmentaNav = document.getElementById('btn-toggle-ementa-nav');
+    const sidebarEmenta = document.getElementById('sidebar-ementa');
+    const colunaVideo = document.getElementById('coluna-video');
+
+    function toggleEmenta() {
+        if (sidebarEmenta && colunaVideo) {
+            const isHidden = sidebarEmenta.classList.contains('d-none');
+
+            if (isHidden) {
+                sidebarEmenta.classList.remove('d-none');
+                colunaVideo.classList.remove('col-lg-9');
+                colunaVideo.classList.add('col-lg-6');
+            } else {
+                sidebarEmenta.classList.add('d-none');
+                colunaVideo.classList.remove('col-lg-6');
+                colunaVideo.classList.add('col-lg-9');
+            }
+
+            const icons = document.querySelectorAll('.toggle-ementa-icon');
+            icons.forEach(icon => {
+                if (isHidden) {
+                    icon.classList.replace('bi-layout-sidebar', 'bi-layout-sidebar-inset');
+                } else {
+                    icon.classList.replace('bi-layout-sidebar-inset', 'bi-layout-sidebar');
+                }
+            });
+
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+            }, 50);
+        }
+    }
+
+    if (btnToggleEmenta) btnToggleEmenta.addEventListener('click', toggleEmenta);
+    if (btnToggleEmentaNav) btnToggleEmentaNav.addEventListener('click', toggleEmenta);
+
+    // Clicar numa aula
+    document.querySelectorAll('.bloco-link').forEach((item, index) => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
             const url = item.dataset.videoUrl;
-            if(!url) return;
 
-            document.querySelectorAll('.bloco-item').forEach(el => el.style.background = '#fdfdfd');
+            if (!url) {
+                console.error("Nenhuma URL de vídeo encontrada para este bloco.");
+                showToast("Erro: Arquivo do vídeo ausente.", "#dc3545");
+                return;
+            }
+
+            document.querySelectorAll('.bloco-link').forEach(el => {
+                el.style.color = '#555';
+                el.style.background = 'transparent';
+            });
+            item.style.color = '#0d6efd';
             item.style.background = '#eef2ff';
 
-            document.getElementById('breadcrumb-modulo').innerText = item.dataset.moduloTitle;
-            document.getElementById('current-lesson-title').innerText = item.dataset.lessonTitle;
-            document.getElementById('current-bloco-title').innerText = "Assistindo: " + item.dataset.blocoTitle;
+            document.getElementById('breadcrumb-modulo').innerText = item.dataset.moduloTitle || '';
+            document.getElementById('current-lesson-title').innerText = item.dataset.lessonTitle || '';
+            document.getElementById('current-bloco-title').innerText = "Assistindo: " + (item.dataset.blocoTitle || '');
 
-            videoPlaceholder.classList.add('d-none');
-            masterVideo.style.display = 'block';
-            masterSource.src = url;
-            masterVideo.dataset.lessonId = item.dataset.lessonId;
-            masterVideo.dataset.blocoId = item.dataset.blocoId;
-            masterVideo.load();
+            const lessonId = item.dataset.lessonId;
+            if (lessonId) {
+                const poolData = document.getElementById(`attachments-data-${lessonId}`);
+                if (poolData) {
+                    const attachmentsList = document.getElementById('attachments-list');
+                    const clonedContent = poolData.cloneNode(true);
+                    const rawNotesDiv = clonedContent.querySelector('.raw-notes');
+                    if (rawNotesDiv) rawNotesDiv.remove();
+
+                    if (clonedContent.innerHTML.trim() !== '') {
+                        attachmentsList.innerHTML = clonedContent.innerHTML;
+                    } else {
+                        attachmentsList.innerHTML = '<p class="text-muted small">Nenhum material anexado.</p>';
+                    }
+
+                    const rawNotesDivOriginal = poolData.querySelector('.raw-notes');
+                    const notesTextarea = document.getElementById('lesson-notes-textarea');
+                    const btnSaveNotes = document.getElementById('btn-save-notes');
+
+                    notesTextarea.value = rawNotesDivOriginal ? rawNotesDivOriginal.textContent : "";
+                    notesTextarea.disabled = false;
+                    notesTextarea.placeholder = "Escreva suas anotações aqui...";
+                    notesTextarea.dataset.activeLesson = lessonId;
+                    btnSaveNotes.disabled = false;
+                }
+            }
+
+            // Destrói a tela preta de "Pronto para estudar"
+            if (videoPlaceholder) {
+                videoPlaceholder.remove(); 
+            }
             
-            let lastTime = localStorage.getItem('user_{{ user.id }}_video_' + item.dataset.blocoId);
-            masterVideo.currentTime = lastTime ? parseFloat(lastTime) : (parseFloat(item.dataset.savedTime) || 0);
-            masterVideo.play().catch(e => console.log('Autoplay preventido.'));
+            // Garante que o Plyr apareça por cima
+            const plyrContainer = document.querySelector('.plyr');
+            if (plyrContainer) {
+                plyrContainer.style.display = 'block';
+                plyrContainer.style.width = '100%';
+                plyrContainer.style.height = '100%';
+                plyrContainer.style.opacity = '1';
+                plyrContainer.style.zIndex = '10';
+            }
 
-            const attachmentsDiv = document.getElementById('attachments-data-' + item.dataset.lessonId);
-            document.getElementById('attachments-list').innerHTML = attachmentsDiv ? attachmentsDiv.innerHTML : '<p class="text-muted small">Nenhum material.</p>';
-
-            document.getElementById('no-notes-msg').classList.add('d-none');
-            document.querySelectorAll('.notes-wrapper').forEach(n => n.classList.add('d-none'));
-            const nw = document.getElementById('notes-' + item.dataset.lessonId);
-            if(nw) nw.classList.remove('d-none');
+            // Injeção de vídeo
+            if (player) {
+                try {
+                    player.source = {
+                        type: 'video',
+                        sources: [{ src: url, type: 'video/mp4' }]
+                    };
+                    player.play().catch(err => console.error('Play prevented:', err));
+                } catch (err) {
+                    console.error("Erro ao configurar player.source:", err);
+                }
+            }
         });
     });
 
-    // Salvar Progresso
-    if(masterVideo) {
-        masterVideo.addEventListener('timeupdate', () => {
-            if (masterVideo.currentTime > 0 && Math.floor(masterVideo.currentTime) % 5 === 0) {
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-                fetch("{% url 'lista_cursos' %}painel/aula/" + masterVideo.dataset.lessonId + "/progresso/", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                    body: JSON.stringify({ action: 'bloco_progress', bloco_id: masterVideo.dataset.blocoId, video_time: masterVideo.currentTime, is_completed: false })
-                });
-                localStorage.setItem('user_{{ user.id }}_video_' + masterVideo.dataset.blocoId, masterVideo.currentTime);
+    let currentBlocoIndex = -1;
+    const blocosLinks = Array.from(document.querySelectorAll('.bloco-link'));
+
+    document.querySelectorAll('.bloco-link').forEach((item, index) => {
+        item.addEventListener('click', () => {
+            currentBlocoIndex = index;
+        });
+    });
+
+    function navigateBloco(direction) {
+        if (currentBlocoIndex === -1 && blocosLinks.length > 0) {
+            currentBlocoIndex = 0;
+            direction = 0;
+        }
+
+        const targetIndex = currentBlocoIndex + direction;
+
+        if (targetIndex >= 0 && targetIndex < blocosLinks.length) {
+            const targetBloco = blocosLinks[targetIndex];
+
+            let currentElement = targetBloco;
+            while (currentElement) {
+                if (currentElement.classList && currentElement.classList.contains('collapse')) {
+                    if (!currentElement.classList.contains('show')) {
+                        if (typeof bootstrap !== 'undefined') {
+                            bootstrap.Collapse.getOrCreateInstance(currentElement).show();
+                        } else {
+                            currentElement.classList.add('show');
+                        }
+                    }
+                }
+                currentElement = currentElement.parentElement;
             }
+
+            targetBloco.click();
+            setTimeout(() => {
+                targetBloco.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+
+        } else {
+            showToast(direction > 0 ? "Você já concluiu a última aula." : "Você já está na primeira aula.", direction > 0 ? "#198754" : "#ffc107");
+        }
+    }
+
+    const btnAnterior = document.getElementById('btn-aula-anterior');
+    const btnProximo = document.getElementById('btn-prox-aula');
+
+    if (btnAnterior) btnAnterior.addEventListener('click', () => navigateBloco(-1));
+    if (btnProximo) btnProximo.addEventListener('click', () => navigateBloco(1));
+
+    const btnSaveNotes = document.getElementById('btn-save-notes');
+    const notesTextarea = document.getElementById('lesson-notes-textarea');
+
+    if (btnSaveNotes) {
+        btnSaveNotes.addEventListener('click', (e) => {
+            e.preventDefault();
+
+            const lessonId = notesTextarea.dataset.activeLesson;
+            if (!lessonId) return;
+
+            btnSaveNotes.disabled = true;
+            const originalText = btnSaveNotes.innerText;
+            btnSaveNotes.innerText = "Salvando...";
+
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const payload = {
+                notes: notesTextarea.value
+            };
+
+            fetch(`/plataforma/painel/aula/${lessonId}/progresso/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(payload)
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showToast("Anotação salva com sucesso!", "#198754");
+
+                        const poolData = document.getElementById(`attachments-data-${lessonId}`);
+                        if (poolData) {
+                            let rawNotesDiv = poolData.querySelector('.raw-notes');
+                            if (rawNotesDiv) {
+                                rawNotesDiv.textContent = notesTextarea.value;
+                            }
+                        }
+                    } else {
+                        showToast("Erro ao salvar anotação.", "#dc3545");
+                    }
+                })
+                .catch(err => {
+                    console.error("Erro no salvamento das notas:", err);
+                    showToast("Erro de conexão.", "#dc3545");
+                })
+                .finally(() => {
+                    btnSaveNotes.innerText = "Salvo!";
+                    setTimeout(() => {
+                        btnSaveNotes.innerText = originalText;
+                        btnSaveNotes.disabled = false;
+                    }, 2000);
+                });
         });
     }
 
-    // Auto-save Notas
-    let typingTimer;
-    document.querySelectorAll('.note-area').forEach(textarea => {
-        textarea.addEventListener('input', (e) => {
-            clearTimeout(typingTimer);
-            const statusSpan = e.target.parentElement.querySelector('.save-status');
-            statusSpan.innerHTML = 'Salvando...';
-            typingTimer = setTimeout(() => {
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-                fetch("{% url 'lista_cursos' %}painel/aula/" + e.target.dataset.lessonId + "/progresso/", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-                    body: JSON.stringify({ notes: e.target.value })
-                }).then(() => statusSpan.innerHTML = 'Salvo');
-            }, 1500);
+    const btnLuz = document.getElementById('btn-apagar-luz');
+    if (btnLuz) {
+        btnLuz.addEventListener('click', () => {
+            document.body.classList.toggle('cinema-mode');
+            if (document.body.classList.contains('cinema-mode')) {
+                btnLuz.innerHTML = '<i class="bi bi-lightbulb-fill"></i> Acender a Luz';
+                btnLuz.classList.replace('btn-dark', 'btn-light');
+            } else {
+                btnLuz.innerHTML = '<i class="bi bi-lightbulb"></i> Apagar a Luz';
+                btnLuz.classList.replace('btn-light', 'btn-dark');
+            }
         });
-    });
-
-    // Botão de Tempo
-    document.querySelectorAll('.btn-snap-time').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const textarea = document.getElementById('textarea-' + btn.dataset.lessonId);
-            const stamp = `[${formatTime(masterVideo.currentTime)}] `;
-            textarea.value += stamp;
-            textarea.dispatchEvent(new Event('input'));
-        });
-    });
+    }
 });
 </script>
+
 {% endblock %}

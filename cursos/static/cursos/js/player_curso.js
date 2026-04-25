@@ -1,5 +1,5 @@
-document.addEventListener("DOMContentLoaded", function() {
-    function showToast(msg, bg="#0d6efd") {
+document.addEventListener("DOMContentLoaded", function () {
+    function showToast(msg, bg = "#0d6efd") {
         if (typeof Toastify !== 'undefined') {
             Toastify({
                 text: msg, duration: 3000, close: true, gravity: "bottom", position: "right",
@@ -23,31 +23,31 @@ document.addEventListener("DOMContentLoaded", function() {
                 seekTime: 10,
             });
         }
-    } catch(err) {
+    } catch (err) {
         console.error("Plyr error:", err);
     }
 
     // Toggle Ementa
     const btnToggleEmenta = document.getElementById('btn-toggle-ementa');
     const btnToggleEmentaNav = document.getElementById('btn-toggle-ementa-nav');
-    const sidebarEmenta = document.getElementById('sidebar-ementa'); 
+    const sidebarEmenta = document.getElementById('sidebar-ementa');
     const colunaVideo = document.getElementById('coluna-video');
 
     function toggleEmenta() {
         if (sidebarEmenta && colunaVideo) {
             const isHidden = sidebarEmenta.classList.contains('d-none');
-            
+
             if (isHidden) {
                 // Mostrar a ementa novamente
                 sidebarEmenta.classList.remove('d-none');
-                
+
                 // Volta o vídeo para col-lg-6
                 colunaVideo.classList.remove('col-lg-9');
                 colunaVideo.classList.add('col-lg-6');
             } else {
                 // Ocultar a ementa
                 sidebarEmenta.classList.add('d-none');
-                
+
                 // Expande o vídeo para col-lg-9
                 colunaVideo.classList.remove('col-lg-6');
                 colunaVideo.classList.add('col-lg-9');
@@ -79,7 +79,7 @@ document.addEventListener("DOMContentLoaded", function() {
             e.preventDefault();
             const url = item.dataset.videoUrl;
 
-            if(!url) {
+            if (!url) {
                 console.error("Nenhuma URL de vídeo encontrada para este bloco.");
                 showToast("Erro: Arquivo do vídeo ausente.", "#dc3545");
                 return;
@@ -108,7 +108,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     const clonedContent = poolData.cloneNode(true);
                     const rawNotesDiv = clonedContent.querySelector('.raw-notes');
                     if (rawNotesDiv) rawNotesDiv.remove();
-                    
+
                     if (clonedContent.innerHTML.trim() !== '') {
                         attachmentsList.innerHTML = clonedContent.innerHTML;
                     } else {
@@ -119,7 +119,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     const rawNotesDivOriginal = poolData.querySelector('.raw-notes');
                     const notesTextarea = document.getElementById('lesson-notes-textarea');
                     const btnSaveNotes = document.getElementById('btn-save-notes');
-                    
+
                     notesTextarea.value = rawNotesDivOriginal ? rawNotesDivOriginal.textContent : "";
                     notesTextarea.disabled = false;
                     notesTextarea.placeholder = "Escreva suas anotações aqui...";
@@ -128,9 +128,24 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
             }
 
-            videoPlaceholder.classList.add('d-none');
-            masterVideo.style.display = 'block';
+            // ==========================================
+            // SOLUÇÃO DEFINITIVA (A MARRETA)
+            // ==========================================
+            if (videoPlaceholder) {
+                videoPlaceholder.remove(); // Remove o elemento completamente do HTML!
+            }
             
+            // Deixa o Plyr assumir o controle total do espaço
+            const plyrContainer = document.querySelector('.plyr');
+            if (plyrContainer) {
+                plyrContainer.style.display = 'block';
+                plyrContainer.style.width = '100%';
+                plyrContainer.style.height = '100%';
+                plyrContainer.style.opacity = '1';
+                plyrContainer.style.zIndex = '10';
+            }
+            // ==========================================
+
             // Injeção de vídeo
             if (player) {
                 try {
@@ -139,7 +154,7 @@ document.addEventListener("DOMContentLoaded", function() {
                         sources: [{ src: url, type: 'video/mp4' }]
                     };
                     player.play().catch(err => console.error('Play prevented:', err));
-                } catch(err) {
+                } catch (err) {
                     console.error("Erro ao configurar player.source:", err);
                 }
             }
@@ -163,10 +178,10 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         const targetIndex = currentBlocoIndex + direction;
-        
+
         if (targetIndex >= 0 && targetIndex < blocosLinks.length) {
             const targetBloco = blocosLinks[targetIndex];
-            
+
             let currentElement = targetBloco;
             while (currentElement) {
                 if (currentElement.classList && currentElement.classList.contains('collapse')) {
@@ -180,12 +195,12 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
                 currentElement = currentElement.parentElement;
             }
-            
+
             targetBloco.click();
             setTimeout(() => {
                 targetBloco.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 300);
-            
+
         } else {
             showToast(direction > 0 ? "Você já concluiu a última aula." : "Você já está na primeira aula.", direction > 0 ? "#198754" : "#ffc107");
         }
@@ -225,33 +240,33 @@ document.addEventListener("DOMContentLoaded", function() {
                 },
                 body: JSON.stringify(payload)
             })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showToast("Anotação salva com sucesso!", "#198754");
-                    
-                    const poolData = document.getElementById(`attachments-data-${lessonId}`);
-                    if (poolData) {
-                        let rawNotesDiv = poolData.querySelector('.raw-notes');
-                        if (rawNotesDiv) {
-                            rawNotesDiv.textContent = notesTextarea.value;
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showToast("Anotação salva com sucesso!", "#198754");
+
+                        const poolData = document.getElementById(`attachments-data-${lessonId}`);
+                        if (poolData) {
+                            let rawNotesDiv = poolData.querySelector('.raw-notes');
+                            if (rawNotesDiv) {
+                                rawNotesDiv.textContent = notesTextarea.value;
+                            }
                         }
+                    } else {
+                        showToast("Erro ao salvar anotação.", "#dc3545");
                     }
-                } else {
-                    showToast("Erro ao salvar anotação.", "#dc3545");
-                }
-            })
-            .catch(err => {
-                console.error("Erro no salvamento das notas:", err);
-                showToast("Erro de conexão.", "#dc3545");
-            })
-            .finally(() => {
-                btnSaveNotes.innerText = "Salvo!";
-                setTimeout(() => {
-                    btnSaveNotes.innerText = originalText;
-                    btnSaveNotes.disabled = false;
-                }, 2000);
-            });
+                })
+                .catch(err => {
+                    console.error("Erro no salvamento das notas:", err);
+                    showToast("Erro de conexão.", "#dc3545");
+                })
+                .finally(() => {
+                    btnSaveNotes.innerText = "Salvo!";
+                    setTimeout(() => {
+                        btnSaveNotes.innerText = originalText;
+                        btnSaveNotes.disabled = false;
+                    }, 2000);
+                });
         });
     }
 
@@ -260,7 +275,7 @@ document.addEventListener("DOMContentLoaded", function() {
     if (btnLuz) {
         btnLuz.addEventListener('click', () => {
             document.body.classList.toggle('cinema-mode');
-            if(document.body.classList.contains('cinema-mode')) {
+            if (document.body.classList.contains('cinema-mode')) {
                 btnLuz.innerHTML = '<i class="bi bi-lightbulb-fill"></i> Acender a Luz';
                 btnLuz.classList.replace('btn-dark', 'btn-light');
             } else {
