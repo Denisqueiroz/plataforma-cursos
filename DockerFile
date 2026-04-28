@@ -31,8 +31,11 @@ RUN chown -R appuser:appuser /app
 # Troca para usuário não-root
 USER appuser
 
-# Porta
+# Avisa que a aplicação vai se comunicar pela porta 8000
 EXPOSE 8000
+
+# O comando exato que liga o servidor Django quando o container iniciar
+
 
 # Comando
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "platacursos.wsgi:application"]
