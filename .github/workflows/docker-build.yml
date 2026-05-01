@@ -4,15 +4,13 @@ on:
   push:
     branches: [ "main" ]
 
-# Permissão necessária para o GitHub Actions gravar a imagem no seu registro
 permissions:
   packages: write
   contents: read
 
-# Variável para evitar repetir seu nome toda hora
 env:
-  # Vai usar o seu nome de usuário do GitHub automaticamente (ex: Denisqueiroz)
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/plata-cursos 
+ 
+  IMAGE_NAME: ghcr.io/denisqueiroz/plata-cursos 
 
 jobs:
   construir-e-publicar:
@@ -27,10 +25,9 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }} # O GitHub gera essa senha automática por segurança!
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Construir a imagem Docker
-        # Repare na Tag: Estamos usando a sigla única do commit (github.sha) como versão
         run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} -t ${{ env.IMAGE_NAME }}:latest .
 
       - name: Enviar a imagem para o Cofre (Push)
