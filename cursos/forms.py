@@ -62,8 +62,8 @@ class TurmaForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Remove 'instance' se estiver nos kwargs (segurança)
-        if 'instance' in kwargs:
+        # Se a instância já existir e tiver um ID salvo no banco, inicializa os cursos
+        if self.instance and self.instance.pk:
             self.fields['courses'].initial = self.instance.courses.all()
         
         # Adiciona classes Bootstrap
@@ -107,18 +107,8 @@ class EnrollmentAlunoForm(forms.Form):
         self.fields['turma'].queryset = Turma.objects.all().prefetch_related('courses').order_by('name')
 
     def clean(self):
-        """Valida se o aluno já não está matriculado"""
-        cleaned_data = super().clean()
-        turma = cleaned_data.get('turma')
-
-        if self.user and turma:
-            # Verifica se já existe enrollment
-            if Enrollment.objects.filter(user=self.user, turma=turma).exists():
-                raise forms.ValidationError(
-                    f"O aluno '{self.user.get_full_name()}' já está matriculado na turma '{turma.name}'."
-                )
-
-        return cleaned_data
+        """A validação de duplicidade será gerenciada pela View para evitar redirecionamento incorreto do FormView."""
+        return super().clean()
 
 
 # ---------------------------------------------------------

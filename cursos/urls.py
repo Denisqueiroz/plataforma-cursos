@@ -14,7 +14,7 @@ from . import views
 urlpatterns = [
     # --- CURSOS ---
     path('', CourseListView.as_view(), name='lista_cursos'),
-    path('criar-curso/', CourseCreateView.as_view(), name='criar_curso'),
+    path('painel/curso/criar/', CourseCreateView.as_view(), name='criar_curso'),
     path('curso/<int:pk>/', CourseDetailView.as_view(), name='detalhe_curso'),
     
     # --- GESTÃO DE CURSOS (ADMIN) ---
@@ -48,7 +48,7 @@ urlpatterns = [
     
     # --- GESTÃO DE TURMAS (ADMIN) ---
     path('painel/turmas/', TurmaListView.as_view(), name='lista_turmas'),
-    path('painel/turmas/nova/', TurmaCreateView.as_view(), name='criar_turma'),
+    path('painel/turma/criar/', TurmaCreateView.as_view(), name='criar_turma'),
     path('painel/turmas/<int:pk>/editar/', TurmaUpdateView.as_view(), name='editar_turma'),
     path('painel/turmas/<int:pk>/excluir/', TurmaDeleteView.as_view(), name='deletar_turma'),
     path('painel/turmas/<int:turma_id>/alunos/', views.turma_alunos_view, name='turma_alunos'),

@@ -7,13 +7,15 @@ from django.urls import reverse_lazy, re_path
 from .serve_media import ranged_serve
 
 urlpatterns = [
-    path('', RedirectView.as_view(url=reverse_lazy(settings.LOGIN_URL)), name='root-redirect'),
+    path('', RedirectView.as_view(pattern_name=settings.LOGIN_URL), name='root-redirect'),
     path('admin/', admin.site.urls),
     path('accounts/', include('django.contrib.auth.urls')),
-    path('plataforma/', include('cursos.urls')), 
+    path('plataforma/', include('cursos.urls')),
+    
+    # Rota para streaming de media movida para fora do if DEBUG para funcionar em produção (videos)
+    re_path(r'^media/(?P<path>.*)$', ranged_serve, {'document_root': settings.MEDIA_ROOT}),
 ]
 
+# Se quiser adicionar rotas exclusivas de DEBUG no futuro:
 if settings.DEBUG:
-    urlpatterns += [
-        re_path(r'^media/(?P<path>.*)$', ranged_serve, {'document_root': settings.MEDIA_ROOT}),
-    ]
+    pass
