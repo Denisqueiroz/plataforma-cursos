@@ -17,7 +17,10 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY and not DEBUG:
     raise ImproperlyConfigured("SECRET_KEY environment variable must be set in production")
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['plata-deca.duckdns.org','*']
+CSRF_TRUSTED_ORIGINS = [
+    'https://plata-deca.duckdns.org'
+]
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = False  # DESLIGAR o redirecionamento forçado
