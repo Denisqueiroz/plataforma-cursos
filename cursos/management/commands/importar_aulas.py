@@ -7,7 +7,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, Downlo
 from cursos.models import Course, Modulo, Lesson, BlocoVideo, Attachment
 
 class Command(BaseCommand):
-    help = 'Varre as pastas e realiza a importação vinculando os vídeos a um curso existente por ID de forma otimizada.'
+    help = 'Varre as pastas e realiza a importação movendo os vídeos para a pasta do sistema de forma otimizada.'
 
     def add_arguments(self, parser):
         parser.add_argument('curso_id', type=int, help='ID do curso existente no banco de dados')
@@ -29,9 +29,6 @@ class Command(BaseCommand):
         
         self.stdout.write(self.style.SUCCESS(f'📚 Vinculando ao Curso Existente: {curso.title} (ID: {curso.id})'))
 
-        # ==============================================================================
-        # PASSO 1: MAPEAMENTO PRÉVIO (Rápido em memória)
-        # ==============================================================================
         total_arquivos_curso = 0
         lista_tarefas = []
 
@@ -59,9 +56,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("Nenhum arquivo de vídeo ou PDF encontrado para importar."))
             return
 
-        # ==============================================================================
-        # PASSO 2: CONFIGURAR AS BARRAS DE PROGRESSO
-        # ==============================================================================
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -81,22 +75,16 @@ class Command(BaseCommand):
                 visible=False
             )
 
-            # Memória cache para evitar ficar fazendo .count() no banco a todo momento
             controle_blocos_aula = {}
 
-            # ==============================================================================
-            # PASSO 3: LAÇO PRINCIPAL OTIMIZADO COM SHUTIL
-            # ==============================================================================
             for tarefa in lista_tarefas:
                 
-                # MÓDULO: Busca ou cria
                 modulo, _ = Modulo.objects.get_or_create(
                     course=curso,
                     title=tarefa['modulo_nome'].upper(),
                     defaults={'order': tarefa['index_mod']}
                 )
 
-                # TRATAMENTO DA AULA
                 try:
                     ordem_aula = int(tarefa['aula_nome'].split('-')[-1])
                 except ValueError:
@@ -110,13 +98,11 @@ class Command(BaseCommand):
                     defaults={'order': ordem_aula}
                 )
 
-                # Inicializa o cache local de blocos se a aula for nova neste ciclo
                 if aula.id not in controle_blocos_aula:
                     proximo_bloco = BlocoVideo.objects.filter(lesson=aula).count() + 1
                     controle_blocos_aula[aula.id] = proximo_bloco
 
                 caminho_completo = os.path.join(tarefa['caminho_aula'], tarefa['arquivo'])
-                tamanho_bytes = os.path.getsize(caminho_completo)
 
                 # ----------------------------------------------------------------------
                 # PROCESSANDO VÍDEO (.mp4)
@@ -126,24 +112,33 @@ class Command(BaseCommand):
                     titulo_bloco = f"Bloco {indice_bloco}"
 
                     if not BlocoVideo.objects.filter(lesson=aula, order=indice_bloco).exists():
-                        progress.update(tarefa_arquivo, description=f"[green]Copiando {tarefa['arquivo'][:20]}...[/]", total=tamanho_bytes, completed=0, visible=True)
-                        
-                        # Caminhos otimizados para o SO
                         rel_path = f"cursos/videos/{curso.id}/{tarefa['arquivo']}"
                         abs_path = os.path.join(settings.MEDIA_ROOT, rel_path)
                         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
 
-                        # Cópia direta do SO (Extremamente rápida e não consome RAM do Django)
-                        shutil.copy2(caminho_completo, abs_path)
+                        # Verifica se o arquivo ainda está na pasta de origem
+                        if os.path.exists(caminho_completo):
+                            tamanho_bytes = os.path.getsize(caminho_completo)
+                            progress.update(tarefa_arquivo, description=f"[green]Movendo {tarefa['arquivo'][:20]}...[/]", total=tamanho_bytes, completed=0, visible=True)
+                            
+                            # Se existir um pedaço quebrado da tentativa anterior, apagamos para não dar conflito
+                            if os.path.exists(abs_path):
+                                os.remove(abs_path)
+                            
+                            # MOVE (recorta e cola) em vez de copiar. 0 bytes extras gastos!
+                            shutil.move(caminho_completo, abs_path)
+                            progress.update(tarefa_arquivo, completed=tamanho_bytes, visible=False)
+                        
+                        elif not os.path.exists(abs_path):
+                            progress.console.print(f"[red]⚠️ Arquivo sumiu: {tarefa['arquivo']}[/]")
+                            continue
 
-                        # Salva apenas o caminho no banco de dados
                         novo_bloco = BlocoVideo(lesson=aula, title=titulo_bloco, order=indice_bloco)
                         novo_bloco.video.name = rel_path
                         novo_bloco.save()
-
-                        progress.update(tarefa_arquivo, completed=tamanho_bytes, visible=False)
+                        
                     else:
-                        progress.console.print(f"[dim grey]⏭️  Ignorado: {titulo_bloco} de '{aula.title}' já importado.[/]")
+                        progress.console.print(f"[dim grey]⏭️  Ignorado: {titulo_bloco} de '{aula.title}' já cadastrado.[/]")
                 
                     controle_blocos_aula[aula.id] += 1
 
@@ -154,24 +149,28 @@ class Command(BaseCommand):
                     titulo_anexo = tarefa['arquivo'].replace('.pdf', '').replace('-', ' ').strip().upper()
 
                     if not Attachment.objects.filter(lesson=aula, title=titulo_anexo).exists():
-                        progress.update(tarefa_arquivo, description=f"[magenta]Copiando {tarefa['arquivo'][:20]}...[/]", total=tamanho_bytes, completed=0, visible=True)
-                        
-                        # Caminhos otimizados para o SO
                         rel_path = f"cursos/anexos/{curso.id}/{tarefa['arquivo']}"
                         abs_path = os.path.join(settings.MEDIA_ROOT, rel_path)
                         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
 
-                        # Cópia direta do SO
-                        shutil.copy2(caminho_completo, abs_path)
+                        if os.path.exists(caminho_completo):
+                            tamanho_bytes = os.path.getsize(caminho_completo)
+                            progress.update(tarefa_arquivo, description=f"[magenta]Movendo {tarefa['arquivo'][:20]}...[/]", total=tamanho_bytes, completed=0, visible=True)
+                            
+                            if os.path.exists(abs_path):
+                                os.remove(abs_path)
+                                
+                            shutil.move(caminho_completo, abs_path)
+                            progress.update(tarefa_arquivo, completed=tamanho_bytes, visible=False)
+                            
+                        elif not os.path.exists(abs_path):
+                            continue
 
-                        # Salva apenas o caminho no banco de dados
                         novo_anexo = Attachment(lesson=aula, title=titulo_anexo)
                         novo_anexo.file.name = rel_path
                         novo_anexo.save()
-
-                        progress.update(tarefa_arquivo, completed=tamanho_bytes, visible=False)
                     else:
-                        progress.console.print(f"[dim grey]⏭️  Ignorado: Anexo '{titulo_anexo}' já importado.[/]")
+                        progress.console.print(f"[dim grey]⏭️  Ignorado: Anexo '{titulo_anexo}' já cadastrado.[/]")
 
                 progress.update(tarefa_geral, advance=1)
 
