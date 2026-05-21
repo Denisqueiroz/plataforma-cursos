@@ -4,33 +4,33 @@ from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 
 # 1. BASE PATHS
-# O BASE_DIR dentro do container será '/app'
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# 2. CONFIGURAÇÕES DE AMBIENTE E SEGURANÇA
-load_dotenv(BASE_DIR / '.env')
+# Carrega o .env localizado na pasta raiz do projeto
+load_dotenv(BASE_DIR.parent / '.env')
 
-# Puxa do .env (Se não achar nada lá, assume False por segurança em produção)
+# 2. CONFIGURAÇÕES DE AMBIENTE E SEGURANÇA
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY and not DEBUG:
     raise ImproperlyConfigured("SECRET_KEY environment variable must be set in production")
 
-ALLOWED_HOSTS = ['plata-deca.duckdns.org', '127.0.0.1', 'localhost']
+# Correção: Lê do .env de forma dinâmica
+raw_hosts = os.getenv('ALLOWED_HOSTS', 'plata-deca.duckdns.org,127.0.0.1,localhost')
+ALLOWED_HOSTS = [host.strip() for host in raw_hosts.split(',')]
+
 CSRF_TRUSTED_ORIGINS = [
-    'https://plata-deca.duckdns.org'
+    'https://plata-deca.duckdns.org',
+    'http://172.25.0.29:10443'
 ]
 
 if not DEBUG:
-    SECURE_SSL_REDIRECT = False  # O Nginx já cuida do HTTPS, o Django recebe em HTTP puro por dentro
+    SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    SECURE_HSTS_SECONDS = 0      # Zerado para não travar o navegador durante os testes
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-    SECURE_HSTS_PRELOAD = False
 
 # 3. DEFINIÇÃO DA APLICAÇÃO
 AUTH_USER_MODEL = 'cursos.User'
@@ -76,7 +76,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'platacursos.wsgi.application'
 
-# 4. BANCO DE DADOS (POSTGRES NO DOCKER)
+# 4. BANCO DE DADOS
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -88,53 +88,26 @@ DATABASES = {
     }
 }
 
-# 5. VALIDAÇÃO DE SENHAS
-AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
-]
-
 # 6. INTERNACIONALIZAÇÃO
 LANGUAGE_CODE = 'pt-br'
 TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
 USE_TZ = True
 
-# 7. ARQUIVOS ESTÁTICOS E MÍDIA (CONFIGURAÇÃO PARA O HD EXTERNO)
+# 7. ARQUIVOS ESTÁTICOS E MÍDIA
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static']
 
-# O Django salva em /app/media, que o Docker mapeia para o seu HD
+# Correção: Aponta para o caminho absoluto no container (/app/media)
+# que está mapeado para o seu HD externo.
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = '/app/media'
 
 # 8. LIMITES DE UPLOAD
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880000
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880000
 
-# 9. AUTENTICAÇÃO E REDIRECIONAMENTOS
+# 9. AUTENTICAÇÃO
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'lista_cursos'
 LOGOUT_REDIRECT_URL = 'login'
-
-AUTHENTICATION_BACKENDS = [
-    'cursos.backends.EmailBackend',
-    'django.contrib.auth.backends.ModelBackend',
-]
-
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# 10. CONFIGURAÇÃO DE E-MAIL (PARA PASSWORD RESET)
-if DEBUG:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-else:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
-    EMAIL_PORT = int(os.getenv('EMAIL_PORT', 25))
-    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
-    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
-    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'False') == 'True'
-    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Plata Cursos <no-reply@platacursos.com>')
