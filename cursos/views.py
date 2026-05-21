@@ -1,17 +1,23 @@
 import os
 import json
+import io
+import base64
+import pyotp
+import qrcode
 from django.http import JsonResponse
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView, TemplateView, FormView
 from django.contrib import messages
 from django.urls import reverse_lazy
-from django.contrib.auth.views import PasswordChangeView
+from django.contrib.auth import login as auth_login
+from django.contrib.auth.views import LoginView, PasswordChangeView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.auth.decorators import login_required
 from django.utils.html import escape
 from django.contrib.admin.views.decorators import staff_member_required
 from django.views.decorators.http import require_POST
+from django.conf import settings
 
 from django.utils.html import escape
 
@@ -24,7 +30,7 @@ class StaffRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
         return self.request.user.is_staff
 
 # --- VIEWS DE CURSO ---
-class CourseListView(ListView):
+class CourseListView(LoginRequiredMixin, ListView):
     model = Course
     template_name = 'cursos/lista_cursos.html'
     context_object_name = 'cursos'
@@ -202,6 +208,7 @@ def delete_course(request, pk):
     messages.success(request, f"Curso '{curso.title}' deletado com sucesso!")
     return redirect('lista_cursos_admin')
 
+@staff_member_required
 def confirm_delete_course(request, pk):
     """Página de confirmação para deletar um curso"""
     if not request.user.is_staff:
@@ -721,3 +728,139 @@ class MyPasswordChangeView(LoginRequiredMixin, SuccessMessageMixin, PasswordChan
     template_name = 'cursos/alterar_senha.html'
     success_url = reverse_lazy('perfil')
     success_message = "Sua senha foi alterada com sucesso!"
+
+
+# --- VIEWS DE 2FA (AUTENTICAÇÃO EM DUAS ETAPAS) ---
+
+class CustomLoginView(LoginView):
+    template_name = 'registration/login.html'
+    
+    def form_valid(self, form):
+        user = form.get_user()
+        
+        # Intercepta o login e armazena o ID do usuário temporariamente na sessão
+        self.request.session['pre_2fa_user_id'] = user.id
+        
+        # Se o usuário ainda não ativou o 2FA ou não tem segredo TOTP, redireciona para ativação
+        if not user.is_2fa_enabled or not user.totp_secret:
+            return redirect('setup_2fa')
+            
+        # Caso contrário, redireciona para a tela onde ele digitará o Token de 6 dígitos
+        return redirect('login_2fa')
+
+
+class Setup2FAView(TemplateView):
+    template_name = 'registration/setup_2fa.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Garante que só acessa esta tela quem passou pela etapa 1 do login (e-mail e senha válidos)
+        if 'pre_2fa_user_id' not in request.session:
+            messages.error(request, "Por favor, insira seu e-mail e senha primeiro.")
+            return redirect('login')
+        return super().dispatch(request, *args, **kwargs)
+        
+    def get(self, request, *args, **kwargs):
+        user_id = request.session['pre_2fa_user_id']
+        user = User.objects.get(id=user_id)
+        
+        # Gera uma nova chave secreta TOTP de 32 caracteres (base32) temporária
+        # Salvamos na sessão para validar no POST antes de salvar em definitivo no banco
+        secret = request.session.get('temp_totp_secret')
+        if not secret:
+            secret = pyotp.random_base32()
+            request.session['temp_totp_secret'] = secret
+            
+        # Gera o link padrão de TOTP (provisioning URI)
+        totp = pyotp.TOTP(secret)
+        provisioning_uri = totp.provisioning_uri(name=user.email, issuer_name="Plata Cursos")
+        
+        # Gera o QR Code com a biblioteca qrcode
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=6,
+            border=3
+        )
+        qr.add_data(provisioning_uri)
+        qr.make(fit=True)
+        
+        # Cria a imagem do QR Code em memória
+        img = qr.make_image(fill_color="#212529", back_color="#ffffff")
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        qr_base64 = base64.b64encode(buffer.getvalue()).decode()
+        
+        context = {
+            'qr_code': qr_base64,
+            'secret_key': secret,
+            'user': user
+        }
+        return self.render_to_response(context)
+        
+    def post(self, request, *args, **kwargs):
+        user_id = request.session['pre_2fa_user_id']
+        user = User.objects.get(id=user_id)
+        secret = request.session.get('temp_totp_secret')
+        token = request.POST.get('token', '').strip()
+        
+        if not secret:
+            messages.error(request, "Sua sessão expirou ou é inválida. Recomece o login.")
+            return redirect('login')
+            
+        # Valida o token gerado pelo aplicativo
+        totp = pyotp.TOTP(secret)
+        if totp.verify(token):
+            # Ativa permanentemente o 2FA para este usuário
+            user.totp_secret = secret
+            user.is_2fa_enabled = True
+            user.save()
+            
+            # Loga o usuário oficialmente
+            auth_login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            
+            # Limpa a sessão
+            if 'pre_2fa_user_id' in request.session:
+                del request.session['pre_2fa_user_id']
+            if 'temp_totp_secret' in request.session:
+                del request.session['temp_totp_secret']
+                
+            messages.success(request, "Autenticação em Duas Etapas (2FA) configurada com sucesso!")
+            return redirect(settings.LOGIN_REDIRECT_URL)
+        else:
+            messages.error(request, "Token inválido. Verifique o código no aplicativo e tente novamente.")
+            # Se falhar, renderizamos novamente o GET recarregando as variáveis
+            return self.get(request, *args, **kwargs)
+
+
+class Login2FAView(TemplateView):
+    template_name = 'registration/login_2fa.html'
+    
+    def dispatch(self, request, *args, **kwargs):
+        if 'pre_2fa_user_id' not in request.session:
+            messages.error(request, "Por favor, faça login com e-mail e senha primeiro.")
+            return redirect('login')
+        return super().dispatch(request, *args, **kwargs)
+        
+    def get(self, request, *args, **kwargs):
+        user_id = request.session['pre_2fa_user_id']
+        user = User.objects.get(id=user_id)
+        return self.render_to_response({'user': user})
+        
+    def post(self, request, *args, **kwargs):
+        user_id = request.session['pre_2fa_user_id']
+        user = User.objects.get(id=user_id)
+        token = request.POST.get('token', '').strip()
+        
+        # Valida o token com a chave secreta oficial salva no banco
+        totp = pyotp.TOTP(user.totp_secret)
+        if totp.verify(token):
+            auth_login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            
+            if 'pre_2fa_user_id' in request.session:
+                del request.session['pre_2fa_user_id']
+                
+            messages.success(request, f"Bem-vindo de volta, {user.first_name or user.username}!")
+            return redirect(settings.LOGIN_REDIRECT_URL)
+        else:
+            messages.error(request, "Token inválido ou expirado. Verifique no aplicativo e tente novamente.")
+            return self.render_to_response({'user': user})

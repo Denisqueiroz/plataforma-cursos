@@ -129,6 +129,42 @@
             }
         });
     }
+
+    // Global Toastify Handler for Django Messages
+    document.addEventListener('DOMContentLoaded', function() {
+        {% if messages %}
+            {% for message in messages %}
+                let bg = "linear-gradient(135deg, #f5af19 0%, #f12711 100%)"; // Warning
+                let color = "#ffffff";
+                
+                {% if message.tags == 'success' %}
+                    bg = "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)"; // Success Green Gradient
+                {% elif message.tags == 'error' or message.tags == 'danger' %}
+                    bg = "linear-gradient(135deg, #cb2d3e 0%, #ef473a 100%)"; // Error Red Gradient
+                {% elif message.tags == 'info' %}
+                    bg = "linear-gradient(135deg, #3a506b 0%, #5bc0be 100%)"; // Info Blue-Teal Gradient
+                {% endif %}
+                
+                Toastify({
+                    text: "{{ message|escapejs }}",
+                    duration: 4000,
+                    close: true,
+                    gravity: "top",
+                    position: "right",
+                    stopOnFocus: true,
+                    style: {
+                        background: bg,
+                        color: color,
+                        borderRadius: "12px",
+                        fontWeight: "600",
+                        fontSize: "0.9rem",
+                        padding: "12px 24px",
+                        boxShadow: "0 10px 30px rgba(0, 0, 0, 0.25)"
+                    }
+                }).showToast();
+            {% endfor %}
+        {% endif %}
+    });
 </script>
 </body>
 </html>

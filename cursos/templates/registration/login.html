@@ -30,12 +30,19 @@
                         <input type="text" name="username" class="form-control glass-input ps-5 py-3" placeholder="seu@email.com" required id="id_username">
                     </div>
                     
-                    <div class="mb-4 position-relative">
+                    <div class="mb-3 position-relative">
                         <i class="bi bi-lock-fill position-absolute text-muted" style="left: 18px; top: 50%; transform: translateY(-50%); z-index: 10;"></i>
-                        <input type="password" name="password" class="form-control glass-input ps-5 py-3" placeholder="Sua senha" required id="id_password">
+                        <input type="password" name="password" class="form-control glass-input ps-5 pe-5 py-3" placeholder="Sua senha" required id="id_password">
+                        <i class="bi bi-eye-slash-fill position-absolute text-muted" id="togglePassword" style="right: 18px; top: 50%; transform: translateY(-50%); z-index: 10; cursor: pointer; transition: color 0.2s ease;"></i>
                     </div>
                     
-                    <div class="d-grid mt-5">
+                    <div class="d-flex justify-content-end mb-4">
+                        <a href="{% url 'password_reset' %}" class="login-forgot-link">
+                            Esqueceu sua senha?
+                        </a>
+                    </div>
+                    
+                    <div class="d-grid mt-4">
                         <button type="submit" class="btn btn-glass-login btn-lg fw-bold py-3 text-uppercase" style="letter-spacing: 1px;">
                             Entrar <i class="bi bi-arrow-right ms-2 fs-5"></i>
                         </button>
@@ -46,4 +53,26 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const togglePassword = document.querySelector('#togglePassword');
+        const passwordInput = document.querySelector('#id_password');
+        
+        if (togglePassword && passwordInput) {
+            togglePassword.addEventListener('click', function() {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                
+                if (type === 'password') {
+                    this.classList.remove('bi-eye-fill');
+                    this.classList.add('bi-eye-slash-fill');
+                } else {
+                    this.classList.remove('bi-eye-slash-fill');
+                    this.classList.add('bi-eye-fill');
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

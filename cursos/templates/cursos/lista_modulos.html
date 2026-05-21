@@ -3,10 +3,46 @@
 {% block title %}Gerenciar Módulos{% endblock %}
 
 {% block content %}
+<style>
+    .accordion-item-custom {
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        background: #ffffff;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 16px !important;
+        overflow: hidden;
+    }
+    .accordion-item-custom:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05) !important;
+    }
+    .accordion-btn-custom {
+        font-size: 1.05rem;
+        box-shadow: none !important;
+        background-color: #ffffff !important;
+        color: #212529 !important;
+        padding: 1.25rem 1.5rem !important;
+        border: none !important;
+    }
+    .accordion-btn-custom:not(.collapsed) {
+        background-color: rgba(255, 193, 7, 0.08) !important; /* Soft yellow accent */
+        color: #1a1d21 !important;
+        border-bottom: 1px solid rgba(255, 193, 7, 0.15) !important;
+    }
+    .accordion-btn-custom::after {
+        transition: transform 0.25s ease;
+    }
+    .table-hover-custom tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    .table-hover-custom tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.015) !important;
+    }
+</style>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h4 class="fw-bold mb-0"><i class="bi bi-folder text-primary me-2"></i>Módulos</h3>
-        <p class="text-muted small mb-0">Organize blocos e aulas dentro de pastas ou capítulos separados.</p>
+        <h4 class="fw-bold mb-0"><i class="bi bi-folder-fill text-primary me-2"></i>Gerenciar Módulos</h4>
+        <p class="text-muted small mb-0">Organize os capítulos e a ordem das aulas agrupados por curso.</p>
     </div>
     <a href="{% url 'criar_modulo' %}" class="btn btn-primary rounded-pill px-4 shadow-sm fw-bold">
         <i class="bi bi-plus-lg me-1"></i> Novo Módulo
@@ -15,42 +51,85 @@
 
 <div class="row">
     <div class="col-12">
-        <div class="table-responsive rounded-4 shadow-sm border bg-white">
-            <table class="table table-hover table-borderless align-middle mb-0">
-                <thead class="bg-light text-secondary border-bottom">
-                    <tr>
-                        <th class="py-3 px-4">Curso Anfitrião</th>
-                        <th class="py-3">Módulo</th>
-                        <th class="py-3">Ordem (Posição)</th>
-                        <th class="py-3 text-end px-4">Ações</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for modulo in modulos %}
-                    <tr>
-                        <td class="px-4 fw-medium text-dark">{{ modulo.course.title }}</td>
-                        <td>{{ modulo.title }}</td>
-                        <td><span class="badge bg-secondary rounded-pill">Ordem {{ modulo.order }}</span></td>
-                        <td class="text-end px-4">
-                            <a href="{% url 'editar_modulo' modulo.pk %}" class="btn btn-sm btn-outline-primary rounded-pill me-1" title="Editar">
-                                <i class="bi bi-pencil-square"></i>
-                            </a>
-                            <a href="{% url 'deletar_modulo' modulo.pk %}" class="btn btn-sm btn-outline-danger rounded-pill" title="Deletar">
-                                <i class="bi bi-trash"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="4" class="text-center py-5 text-muted">
-                            <i class="bi bi-folder-x fs-1 opacity-50 mb-3 d-block"></i>
-                            Nenhum módulo cadastrado.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {% regroup modulos by course as course_list %}
+
+        {% if course_list %}
+            <div class="accordion d-flex flex-column gap-3" id="accordionCursos">
+                {% for course_item in course_list %}
+                    <div class="accordion-item accordion-item-custom shadow-sm">
+                        <h2 class="accordion-header" id="headingCurso{{ course_item.grouper.id }}">
+                            <button class="accordion-button collapsed accordion-btn-custom fw-bold d-flex align-items-center" 
+                                    type="button" 
+                                    data-bs-toggle="collapse" 
+                                    data-bs-target="#collapseCurso{{ course_item.grouper.id }}" 
+                                    aria-expanded="false" 
+                                    aria-controls="collapseCurso{{ course_item.grouper.id }}">
+                                <i class="bi bi-book-half text-warning me-3 fs-5"></i>
+                                <span>{{ course_item.grouper.title }}</span>
+                                <span class="badge bg-secondary rounded-pill ms-3 fs-7 fw-semibold" style="opacity: 0.85;">
+                                    {{ course_item.list|length }} {% if course_item.list|length == 1 %}Módulo{% else %}Módulos{% endif %}
+                                </span>
+                            </button>
+                        </h2>
+                        
+                        <div id="collapseCurso{{ course_item.grouper.id }}" 
+                             class="accordion-collapse collapse" 
+                             aria-labelledby="headingCurso{{ course_item.grouper.id }}" 
+                             data-bs-parent="#accordionCursos">
+                            <div class="accordion-body p-0 bg-white">
+                                <div class="table-responsive">
+                                    <table class="table table-hover-custom align-middle mb-0">
+                                        <thead class="bg-light text-secondary border-bottom">
+                                            <tr>
+                                                <th class="py-3 px-4" style="width: 15%;">Ordem</th>
+                                                <th class="py-3" style="width: 60%;">Módulo</th>
+                                                <th class="py-3 text-end px-4" style="width: 25%;">Ações</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for modulo in course_item.list %}
+                                                <tr class="border-bottom border-light">
+                                                    <td class="px-4">
+                                                        <span class="badge bg-light text-dark border rounded-pill py-2 px-3 fw-bold small">
+                                                            Posição {{ modulo.order }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="fw-semibold text-dark">{{ modulo.title }}</td>
+                                                    <td class="text-end px-4">
+                                                        <a href="{% url 'editar_modulo' modulo.pk %}" 
+                                                           class="btn btn-sm btn-outline-primary rounded-pill me-1 px-3" 
+                                                           title="Editar Módulo">
+                                                            <i class="bi bi-pencil-square me-1"></i> Editar
+                                                        </a>
+                                                        <a href="{% url 'deletar_modulo' modulo.pk %}" 
+                                                           class="btn btn-sm btn-outline-danger rounded-pill px-3" 
+                                                           title="Deletar Módulo">
+                                                            <i class="bi bi-trash me-1"></i> Excluir
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Mensagem Amigável se não houver módulos -->
+            <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-white">
+                <div class="card-body">
+                    <i class="bi bi-folder-x fs-1 text-muted opacity-50 mb-3 d-block"></i>
+                    <h5 class="fw-bold text-dark mb-2">Nenhum módulo cadastrado</h5>
+                    <p class="text-muted mb-4 small">Os módulos servem para organizar suas aulas em capítulos estruturados.</p>
+                    <a href="{% url 'criar_modulo' %}" class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="bi bi-plus-lg me-1"></i> Criar Primeiro Módulo
+                    </a>
+                </div>
+            </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

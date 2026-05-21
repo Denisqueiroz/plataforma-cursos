@@ -5,6 +5,9 @@ from django.utils.text import slugify
 
 # Usuário
 class User(AbstractUser):
+    is_2fa_enabled = models.BooleanField(default=False)
+    totp_secret = models.CharField(max_length=32, blank=True, null=True)
+
     def get_meus_cursos(self):
         """
         Retorna todos os cursos vinculados ao usuário através das turmas

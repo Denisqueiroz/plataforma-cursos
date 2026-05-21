@@ -1,0 +1,110 @@
+{% extends 'cursos/base.html' %}
+{% load static %}
+
+{% block title %}Alterar Senha - Plataforma de Cursos{% endblock %}
+
+{% block body_class %}login-bg{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center align-items-center" style="min-height: 75vh;">
+        <div class="col-md-8 col-lg-6">
+            <div class="card glass-card border-0 p-4 shadow-lg">
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="mb-3">
+                            <i class="bi bi-shield-lock text-white opacity-75" style="font-size: 3rem;"></i>
+                        </div>
+                        <h3 class="fw-bold text-white mb-0" style="letter-spacing: 1px;">ALTERAR SUA SENHA</h3>
+                        <p class="text-light opacity-75 mt-2 small">Preencha as informações abaixo para atualizar a segurança da sua conta.</p>
+                    </div>
+
+                    {% if form.errors %}
+                        <div class="alert alert-danger bg-danger text-white border-0 py-2 small rounded-3 mb-4" style="background-color: rgba(220, 53, 69, 0.8) !important;">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Por favor, corrija os erros abaixo:
+                            <ul class="mb-0 mt-1 ps-3 small">
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <form method="post" autocomplete="off">
+                        {% csrf_token %}
+                        
+                        <!-- Senha Atual -->
+                        <div class="mb-4">
+                            <label class="form-label text-white-50 small fw-bold text-uppercase mb-2">Senha Atual</label>
+                            <div class="position-relative">
+                                <i class="bi bi-key-fill position-absolute text-muted" style="left: 18px; top: 50%; transform: translateY(-50%); z-index: 10;"></i>
+                                <input type="password" name="old_password" class="form-control glass-input ps-5 pe-5 py-3" placeholder="Digite sua senha atual" required id="id_old_password">
+                                <i class="bi bi-eye-slash-fill position-absolute text-muted toggle-pwd" data-target="id_old_password" style="right: 18px; top: 50%; transform: translateY(-50%); z-index: 10; cursor: pointer; transition: color 0.2s ease;"></i>
+                            </div>
+                        </div>
+
+                        <!-- Nova Senha -->
+                        <div class="mb-4">
+                            <label class="form-label text-white-50 small fw-bold text-uppercase mb-2">Nova Senha</label>
+                            <div class="position-relative">
+                                <i class="bi bi-lock-fill position-absolute text-muted" style="left: 18px; top: 50%; transform: translateY(-50%); z-index: 10;"></i>
+                                <input type="password" name="new_password1" class="form-control glass-input ps-5 pe-5 py-3" placeholder="Digite a nova senha" required id="id_new_password1">
+                                <i class="bi bi-eye-slash-fill position-absolute text-muted toggle-pwd" data-target="id_new_password1" style="right: 18px; top: 50%; transform: translateY(-50%); z-index: 10; cursor: pointer; transition: color 0.2s ease;"></i>
+                            </div>
+                        </div>
+
+                        <!-- Confirmar Nova Senha -->
+                        <div class="mb-4">
+                            <label class="form-label text-white-50 small fw-bold text-uppercase mb-2">Confirmar Nova Senha</label>
+                            <div class="position-relative">
+                                <i class="bi bi-lock-fill position-absolute text-muted" style="left: 18px; top: 50%; transform: translateY(-50%); z-index: 10;"></i>
+                                <input type="password" name="new_password2" class="form-control glass-input ps-5 pe-5 py-3" placeholder="Confirme a nova senha" required id="id_new_password2">
+                                <i class="bi bi-eye-slash-fill position-absolute text-muted toggle-pwd" data-target="id_new_password2" style="right: 18px; top: 50%; transform: translateY(-50%); z-index: 10; cursor: pointer; transition: color 0.2s ease;"></i>
+                            </div>
+                        </div>
+
+                        <!-- Ações -->
+                        <div class="d-flex flex-column gap-2 mt-5">
+                            <button type="submit" class="btn btn-glass-login btn-lg fw-bold py-3 text-uppercase" style="letter-spacing: 1px;">
+                                Salvar Nova Senha <i class="bi bi-check-circle ms-2 fs-6"></i>
+                            </button>
+                            <a href="{% url 'perfil' %}" class="btn btn-outline-light border-0 opacity-75 btn-lg fw-semibold py-3 text-uppercase mt-1" style="font-size: 0.85rem; letter-spacing: 1px;">
+                                <i class="bi bi-arrow-left me-2"></i> Cancelar e Voltar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggles = document.querySelectorAll('.toggle-pwd');
+        toggles.forEach(toggle => {
+            toggle.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target');
+                const passwordInput = document.getElementById(targetId);
+                if (passwordInput) {
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
+                    
+                    if (type === 'password') {
+                        this.classList.remove('bi-eye-fill');
+                        this.classList.add('bi-eye-slash-fill');
+                    } else {
+                        this.classList.remove('bi-eye-slash-fill');
+                        this.classList.add('bi-eye-fill');
+                    }
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

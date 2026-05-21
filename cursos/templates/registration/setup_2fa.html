@@ -1,0 +1,80 @@
+{% extends 'cursos/base.html' %}
+
+{% block title %}Configurar 2FA - Plataforma de Cursos{% endblock %}
+
+{% block body_class %}login-bg{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 85vh; padding-top: 2rem; padding-bottom: 2rem;">
+    <div class="col-md-6 col-lg-5">
+        <div class="card glass-card border-0 p-4 shadow-lg">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <div class="mb-3">
+                        <i class="bi bi-shield-lock-fill text-warning opacity-75" style="font-size: 3rem; filter: drop-shadow(0 0 10px rgba(255, 193, 7, 0.3));"></i>
+                    </div>
+                    <h3 class="fw-bold text-white mb-1" style="letter-spacing: 1px;">AUTENTICAÇÃO 2FA</h3>
+                    <p class="text-light opacity-75 mt-2 small">Ative a Autenticação em Duas Etapas (2FA) para proteger sua conta.</p>
+                </div>
+                
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-danger text-center bg-danger text-white border-0 py-2 small mb-3" style="background-color: rgba(220, 53, 69, 0.8) !important;">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i> {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <!-- Passo a passo visual -->
+                <div class="step-guide mb-4 p-3 rounded" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08);">
+                    <div class="small text-white fw-bold mb-2">
+                        <i class="bi bi-info-circle text-info me-2"></i>Como configurar:
+                    </div>
+                    <ol class="small text-light opacity-75 ps-3 mb-0" style="line-height: 1.6;">
+                        <li>Abra um aplicativo autenticador no seu celular (Google Authenticator, Authy, etc).</li>
+                        <li>Escaneie o QR Code abaixo ou adicione manualmente a chave secreta.</li>
+                        <li>Digite o código de 6 dígitos gerado pelo app no campo abaixo para ativar.</li>
+                    </ol>
+                </div>
+
+                <div class="text-center mb-4">
+                    <div class="d-inline-block p-3 bg-white rounded shadow-sm mb-3">
+                        <!-- QR Code base64 -->
+                        <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code 2FA" class="img-fluid" style="width: 180px; height: 180px;">
+                    </div>
+                    
+                    <div class="mt-2">
+                        <span class="text-muted d-block small mb-1">Chave Secreta (Configuração Manual):</span>
+                        <code class="d-inline-block px-3 py-2 text-warning rounded font-monospace fs-6" style="background: rgba(255, 255, 255, 0.07); letter-spacing: 1px; border: 1px dashed rgba(255, 193, 7, 0.3);">
+                            {{ secret_key }}
+                        </code>
+                    </div>
+                </div>
+
+                <form method="post" action="{% url 'setup_2fa' %}">
+                    {% csrf_token %}
+                    <div class="mb-4">
+                        <label for="id_token" class="form-label text-light small fw-semibold mb-2">Código Verificador (6 dígitos)</label>
+                        <div class="position-relative">
+                            <i class="bi bi-key position-absolute text-muted" style="left: 18px; top: 50%; transform: translateY(-50%); z-index: 10;"></i>
+                            <input type="text" name="token" class="form-control glass-input ps-5 py-3 text-center fs-5 fw-bold font-monospace" placeholder="000000" maxlength="6" inputmode="numeric" pattern="[0-9]*" required autocomplete="one-time-code" id="id_token" autofocus>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-glass-login btn-lg fw-bold py-3 text-uppercase" style="letter-spacing: 1px;">
+                            Confirmar e Ativar <i class="bi bi-check-circle ms-2 fs-6"></i>
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="text-center mt-4">
+                    <a href="{% url 'login' %}" class="login-forgot-link">
+                        <i class="bi bi-arrow-left me-1"></i> Cancelar e Sair
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
