@@ -1,8 +1,8 @@
 import os
-from pathlib import Path
+import shutil
+from django.conf import settings
 from django.core.management.base import BaseCommand
-from django.core.files import File
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, DownloadColumn, TransferSpeedColumn, TimeRemainingColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, DownloadColumn, TimeRemainingColumn
 
 from cursos.models import Course, Modulo, Lesson, BlocoVideo, Attachment
 
@@ -67,7 +67,6 @@ class Command(BaseCommand):
             TextColumn("[progress.description]{task.description}"),
             BarColumn(bar_width=40),
             DownloadColumn(),
-            TransferSpeedColumn(),
             TimeRemainingColumn(),
         ) as progress:
 
@@ -86,7 +85,7 @@ class Command(BaseCommand):
             controle_blocos_aula = {}
 
             # ==============================================================================
-            # PASSO 3: LAÇO PRINCIPAL COM COPIA EM BLOCOS (CHUNKS) DE 4MB
+            # PASSO 3: LAÇO PRINCIPAL OTIMIZADO COM SHUTIL
             # ==============================================================================
             for tarefa in lista_tarefas:
                 
@@ -119,22 +118,6 @@ class Command(BaseCommand):
                 caminho_completo = os.path.join(tarefa['caminho_aula'], tarefa['arquivo'])
                 tamanho_bytes = os.path.getsize(caminho_completo)
 
-                # --- NOVA CLASSE ESPIÃ OTIMIZADA ---
-                # Agora ela define e respeita blocos de 4MB (4194304 bytes)
-                class OptimizedProgressFile(File):
-                    def __init__(self, file, progress_instance, task_id):
-                        super().__init__(file)
-                        self._progress = progress_instance
-                        self._task_id = task_id
-                        # Força o Django a usar 4MB por leitura em vez do padrão pequeno dele
-                        self.chunk_size = 4194304 
-
-                    def read(self, *args, **kwargs):
-                        data = super().read(*args, **kwargs)
-                        if data:
-                            self._progress.update(self._task_id, advance=len(data))
-                        return data
-
                 # ----------------------------------------------------------------------
                 # PROCESSANDO VÍDEO (.mp4)
                 # ----------------------------------------------------------------------
@@ -143,14 +126,25 @@ class Command(BaseCommand):
                     titulo_bloco = f"Bloco {indice_bloco}"
 
                     if not BlocoVideo.objects.filter(lesson=aula, order=indice_bloco).exists():
-                        progress.update(tarefa_arquivo, description=f"[green]Enviando {tarefa['arquivo'][:20]}...[/]", total=tamanho_bytes, completed=0, visible=True)
+                        progress.update(tarefa_arquivo, description=f"[green]Copiando {tarefa['arquivo'][:20]}...[/]", total=tamanho_bytes, completed=0, visible=True)
                         
-                        with open(caminho_completo, 'rb') as vf:
-                            novo_bloco = BlocoVideo(lesson=aula, title=titulo_bloco, order=indice_bloco)
-                            # Passamos a nossa classe com chunk_size injetado
-                            novo_bloco.video.save(tarefa['arquivo'], OptimizedProgressFile(vf, progress, tarefa_arquivo), save=True)
-                    
-                    # Atualiza o contador local na memória (evita bater no banco no próximo bloco da mesma aula)
+                        # Caminhos otimizados para o SO
+                        rel_path = f"cursos/videos/{curso.id}/{tarefa['arquivo']}"
+                        abs_path = os.path.join(settings.MEDIA_ROOT, rel_path)
+                        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
+
+                        # Cópia direta do SO (Extremamente rápida e não consome RAM do Django)
+                        shutil.copy2(caminho_completo, abs_path)
+
+                        # Salva apenas o caminho no banco de dados
+                        novo_bloco = BlocoVideo(lesson=aula, title=titulo_bloco, order=indice_bloco)
+                        novo_bloco.video.name = rel_path
+                        novo_bloco.save()
+
+                        progress.update(tarefa_arquivo, completed=tamanho_bytes, visible=False)
+                    else:
+                        progress.console.print(f"[dim grey]⏭️  Ignorado: {titulo_bloco} de '{aula.title}' já importado.[/]")
+                
                     controle_blocos_aula[aula.id] += 1
 
                 # ----------------------------------------------------------------------
@@ -160,13 +154,25 @@ class Command(BaseCommand):
                     titulo_anexo = tarefa['arquivo'].replace('.pdf', '').replace('-', ' ').strip().upper()
 
                     if not Attachment.objects.filter(lesson=aula, title=titulo_anexo).exists():
-                        progress.update(tarefa_arquivo, description=f"[magenta]Enviando {tarefa['arquivo'][:20]}...[/]", total=tamanho_bytes, completed=0, visible=True)
+                        progress.update(tarefa_arquivo, description=f"[magenta]Copiando {tarefa['arquivo'][:20]}...[/]", total=tamanho_bytes, completed=0, visible=True)
                         
-                        with open(caminho_completo, 'rb') as pf:
-                            novo_anexo = Attachment(lesson=aula, title=titulo_anexo)
-                            novo_anexo.file.save(tarefa['arquivo'], OptimizedProgressFile(pf, progress, tarefa_arquivo), save=True)
+                        # Caminhos otimizados para o SO
+                        rel_path = f"cursos/anexos/{curso.id}/{tarefa['arquivo']}"
+                        abs_path = os.path.join(settings.MEDIA_ROOT, rel_path)
+                        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
 
-                progress.update(tarefa_arquivo, visible=False)
+                        # Cópia direta do SO
+                        shutil.copy2(caminho_completo, abs_path)
+
+                        # Salva apenas o caminho no banco de dados
+                        novo_anexo = Attachment(lesson=aula, title=titulo_anexo)
+                        novo_anexo.file.name = rel_path
+                        novo_anexo.save()
+
+                        progress.update(tarefa_arquivo, completed=tamanho_bytes, visible=False)
+                    else:
+                        progress.console.print(f"[dim grey]⏭️  Ignorado: Anexo '{titulo_anexo}' já importado.[/]")
+
                 progress.update(tarefa_geral, advance=1)
 
         self.stdout.write(self.style.SUCCESS('\n🚀 --- Automação Concluída com Sucesso! ---'))
