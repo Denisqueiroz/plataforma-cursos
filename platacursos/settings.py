@@ -3,36 +3,96 @@ from pathlib import Path
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 
-# 1. BASE PATHS
+# =====================================================
+# BASE PATHS
+# =====================================================
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Carrega o .env localizado na pasta raiz do projeto
-load_dotenv(BASE_DIR.parent / '.env')
+# Carrega variáveis do .env
+load_dotenv(BASE_DIR / '.env')
 
-# 2. CONFIGURAÇÕES DE AMBIENTE E SEGURANÇA
-DEBUG = os.getenv('DEBUG', 'False') == 'True'
+# =====================================================
+# SEGURANÇA E AMBIENTE
+# =====================================================
 
+# DEBUG
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+
+# SECRET_KEY
 SECRET_KEY = os.getenv('SECRET_KEY')
-if not SECRET_KEY and not DEBUG:
-    raise ImproperlyConfigured("SECRET_KEY environment variable must be set in production")
 
-# Correção: Lê do .env de forma dinâmica
-raw_hosts = os.getenv('ALLOWED_HOSTS', 'plata-deca.duckdns.org,127.0.0.1,localhost')
-ALLOWED_HOSTS = [host.strip() for host in raw_hosts.split(',')]
+if not SECRET_KEY:
+    raise ImproperlyConfigured(
+        'SECRET_KEY environment variable must be set'
+    )
 
-CSRF_TRUSTED_ORIGINS = [
-    'https://plata-deca.duckdns.org',
-    'http://172.25.0.29:10443'
+# =====================================================
+# ALLOWED_HOSTS
+# =====================================================
+
+raw_hosts = os.getenv(
+    'ALLOWED_HOSTS',
+    '127.0.0.1,localhost'
+)
+
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in raw_hosts.split(',')
 ]
 
+# =====================================================
+# CSRF TRUSTED ORIGINS
+# =====================================================
+
+raw_csrf = os.getenv(
+    'CSRF_TRUSTED_ORIGINS',
+    'https://plata-deca.duckdns.org'
+)
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in raw_csrf.split(',')
+]
+
+# =====================================================
+# CONFIGURAÇÕES DE PRODUÇÃO
+# =====================================================
+
 if not DEBUG:
-    SECURE_SSL_REDIRECT = False
+
+    # Força HTTPS
+    SECURE_SSL_REDIRECT = True
+
+    # Proxy reverso (Nginx/Traefik/Cloudflare)
+    SECURE_PROXY_SSL_HEADER = (
+        'HTTP_X_FORWARDED_PROTO',
+        'https'
+    )
+
+    # Cookies seguros
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+    # Segurança navegador
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
 
-# 3. DEFINIÇÃO DA APLICAÇÃO
+    # HSTS
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+    # Clickjacking
+    X_FRAME_OPTIONS = 'DENY'
+
+    # Referrer Policy
+    SECURE_REFERRER_POLICY = 'same-origin'
+
+# =====================================================
+# APLICAÇÕES
+# =====================================================
+
 AUTH_USER_MODEL = 'cursos.User'
 
 INSTALLED_APPS = [
@@ -42,8 +102,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
     'cursos',
 ]
+
+# =====================================================
+# MIDDLEWARE
+# =====================================================
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -56,58 +121,117 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# =====================================================
+# URLS / WSGI
+# =====================================================
+
 ROOT_URLCONF = 'platacursos.urls'
+
+WSGI_APPLICATION = 'platacursos.wsgi.application'
+
+# =====================================================
+# TEMPLATES
+# =====================================================
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
+
         'DIRS': [],
+
         'APP_DIRS': True,
+
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
+
                 'django.contrib.auth.context_processors.auth',
+
                 'django.contrib.messages.context_processors.messages',
+
                 'django.template.context_processors.media',
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'platacursos.wsgi.application'
+# =====================================================
+# DATABASE
+# =====================================================
 
-# 4. BANCO DE DADOS
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
+
         'NAME': os.getenv('DB_NAME', 'platacursos'),
+
         'USER': os.getenv('DB_USER', 'postgres'),
+
         'PASSWORD': os.getenv('DB_PASSWORD', ''),
+
         'HOST': os.getenv('DB_HOST', 'postgres_db'),
+
         'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
 
-# 6. INTERNACIONALIZAÇÃO
+# =====================================================
+# INTERNACIONALIZAÇÃO
+# =====================================================
+
 LANGUAGE_CODE = 'pt-br'
+
 TIME_ZONE = 'America/Sao_Paulo'
+
 USE_I18N = True
+
 USE_TZ = True
 
-# 7. ARQUIVOS ESTÁTICOS E MÍDIA
-STATIC_URL = 'static/'
+# =====================================================
+# STATIC FILES
+# =====================================================
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Correção: Aponta para o caminho absoluto no container (/app/media)
-# que está mapeado para o seu HD externo.
+if DEBUG:
+    # Em desenvolvimento, permite que o Django encontre estáticos nas pastas dos apps
+    STATICFILES_DIRS = [BASE_DIR / 'static']
+else:
+    # Em produção, usa o WhiteNoise para servir os arquivos coletados
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# =====================================================
+# MEDIA FILES
+# =====================================================
+
 MEDIA_URL = '/media/'
+
 MEDIA_ROOT = '/app/media'
 
-# 8. LIMITES DE UPLOAD
-DATA_UPLOAD_MAX_MEMORY_SIZE = 5242880000
-FILE_UPLOAD_MAX_MEMORY_SIZE = 5242880000
+# =====================================================
+# UPLOAD LIMITS
+# =====================================================
 
-# 9. AUTENTICAÇÃO
+# 100MB
+DATA_UPLOAD_MAX_MEMORY_SIZE = 104857600
+
+FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600
+
+# =====================================================
+# LOGIN
+# =====================================================
+
 LOGIN_URL = 'login'
+
 LOGIN_REDIRECT_URL = 'lista_cursos'
+
 LOGOUT_REDIRECT_URL = 'login'
+
+# =====================================================
+# AUTHENTICATION
+# =====================================================
+
+AUTHENTICATION_BACKENDS = [
+    'cursos.backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
