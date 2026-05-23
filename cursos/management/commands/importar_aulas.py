@@ -1,48 +1,73 @@
 import os
+import shutil
 from django.conf import settings
-from django.core.management.base import BaseCommand
+from django.core.files import File
 from cursos.models import Course, Modulo, Lesson, BlocoVideo, Attachment
 
-class Command(BaseCommand):
-    help = 'Indexa arquivos locais no banco de dados.'
+# --- CONFIGURAÇÕES ---
+# Pasta onde seus vídeos e PDFs estão agora (o "bagunçado")
+BASE_ORIGEM = '/media/meu_hd/Curso_Camila' 
 
-    def add_arguments(self, parser):
-        parser.add_argument('curso_id', type=int)
-        parser.add_argument('caminho_origem', type=str)
+def rodar_automacao():
+    # Busca o curso pelo título
+    try:
+        curso = Course.objects.get(title="ANALISTA (TRIBUNAIS) - 2025")
+    except Course.DoesNotExist:
+        print("Erro: Curso 'ANALISTA (TRIBUNAIS) - 2025' não encontrado no banco.")
+        return
 
-    def handle(self, *args, **options):
-        curso = Course.objects.get(id=options['curso_id'])
-        caminho_origem = options['caminho_origem']
-
-        # O script percorre as pastas fisicamente presentes no seu Windows
-        for modulo_nome in sorted(os.listdir(caminho_origem)):
-            caminho_modulo = os.path.join(caminho_origem, modulo_nome)
-            if not os.path.isdir(caminho_modulo): continue
+    # 1. Percorre Módulos
+    for modulo_dir in sorted(os.listdir(BASE_ORIGEM)):
+        modulo, _ = Modulo.objects.get_or_create(title=modulo_dir, course=curso)
+        path_modulo = os.path.join(BASE_ORIGEM, modulo_dir)
+        
+        # 2. Percorre Blocos (Aulas)
+        for bloco_dir in sorted(os.listdir(path_modulo)):
+            path_bloco = os.path.join(path_modulo, bloco_dir)
             
-            modulo, _ = Modulo.objects.get_or_create(course=curso, title=modulo_nome.upper())
+            # Verifica se a Aula já existe para não duplicar
+            aula, criada = Lesson.objects.get_or_create(modulo=modulo, title=bloco_dir)
             
-            for aula_nome in sorted(os.listdir(caminho_modulo)):
-                caminho_aula = os.path.join(caminho_modulo, aula_nome)
-                if not os.path.isdir(caminho_aula): continue
+            if not criada:
+                print(f"Aula '{bloco_dir}' já cadastrada. Pulando...")
+                continue
+            
+            # 3. Processa Arquivos
+            arquivos = sorted(os.listdir(path_bloco))
+            video_idx = 1
+            
+            for arquivo in arquivos:
+                full_path = os.path.join(path_bloco, arquivo)
                 
-                aula, _ = Lesson.objects.get_or_create(modulo=modulo, title=aula_nome.upper())
+                # --- VÍDEOS (MOVER) ---
+                if arquivo.lower().endswith(('.mp4', '.mkv')):
+                    bloco = BlocoVideo(lesson=aula, title=f"Aula {video_idx:02d}", order=video_idx)
+                    nome_novo = f"Aula-{video_idx:02d}.mp4"
+                    
+                    # Prepara o caminho final usando a lógica do seu model
+                    bloco.video.save(nome_novo, File(open(full_path, 'rb')), save=False)
+                    caminho_final = bloco.video.path
+                    
+                    # Cria a pasta de destino se não existir e move o arquivo
+                    os.makedirs(os.path.dirname(caminho_final), exist_ok=True)
+                    shutil.move(full_path, caminho_final)
+                    
+                    bloco.save()
+                    print(f"Vídeo organizado: {nome_novo}")
+                    video_idx += 1
                 
-                for arq in sorted(os.listdir(caminho_aula)):
-                    caminho_completo = os.path.join(caminho_aula, arq)
+                # --- PDFS (MOVER) ---
+                elif arquivo.lower().endswith('.pdf'):
+                    anexo = Attachment(lesson=aula, title=arquivo)
+                    # Prepara caminho
+                    anexo.file.save(arquivo, File(open(full_path, 'rb')), save=False)
+                    caminho_final = anexo.file.path
                     
-                    # LOGICA IMPORTANTE: 
-                    # Se você quer que funcione no Linux depois, salve o caminho 
-                    # usando barras normais '/' e sem a letra da unidade (ex: C:)
-                    nome_arquivo_relativo = f"Curso_Camila/{modulo_nome}/{aula_nome}/{arq}"
+                    os.makedirs(os.path.dirname(caminho_final), exist_ok=True)
+                    shutil.move(full_path, caminho_final)
                     
-                    if arq.lower().endswith('.mp4'):
-                        if not BlocoVideo.objects.filter(lesson=aula, video=nome_arquivo_relativo).exists():
-                            BlocoVideo.objects.create(lesson=aula, title=f"Video - {arq}", video=nome_arquivo_relativo)
-                            self.stdout.write(f"✅ Indexado: {arq}")
-                            
-                    elif arq.lower().endswith('.pdf'):
-                        if not Attachment.objects.filter(lesson=aula, file=nome_arquivo_relativo).exists():
-                            Attachment.objects.create(lesson=aula, title=arq, file=nome_arquivo_relativo)
-                            self.stdout.write(f"📄 Indexado: {arq}")
+                    anexo.save()
+                    print(f"PDF organizado: {arquivo}")
 
-        self.stdout.write(self.style.SUCCESS('🚀 Indexação local concluída!'))
+if __name__ == "__main__":
+    rodar_automacao()
