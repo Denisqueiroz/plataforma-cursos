@@ -41,6 +41,25 @@ ALLOWED_HOSTS = [
     for host in raw_hosts.split(',')
 ]
 
+# CORREÇÃO: Adiciona IPs internos do Docker e Gateway de rede privada dinamicamente
+# Isso impede erros 400 (Bad Request) em ambientes Docker e durante scans do OWASP ZAP
+import socket
+try:
+    # Adiciona o IP do próprio container Docker
+    container_ip = socket.gethostbyname(socket.gethostname())
+    if container_ip not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(container_ip)
+    
+    # Adiciona o Gateway padrão do Docker e sub-rede (ex: 172.25.0.1 se o IP for 172.25.0.29)
+    ip_parts = container_ip.split('.')
+    if len(ip_parts) == 4:
+        gateway_ip = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.1"
+        if gateway_ip not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(gateway_ip)
+except Exception:
+    pass
+
+
 # =====================================================
 # CSRF TRUSTED ORIGINS
 # =====================================================
@@ -193,12 +212,14 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-if DEBUG:
-    # Em desenvolvimento, permite que o Django encontre estáticos nas pastas dos apps
-    STATICFILES_DIRS = [BASE_DIR / 'static']
-else:
+# CORREÇÃO: STATICFILES_DIRS movido para fora de 'if DEBUG' para que o comando
+# 'python manage.py collectstatic' encontre os arquivos estáticos e funcione em produção.
+STATICFILES_DIRS = [BASE_DIR / 'static']
+
+if not DEBUG:
     # Em produção, usa o WhiteNoise para servir os arquivos coletados
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 
 # =====================================================
 # MEDIA FILES
